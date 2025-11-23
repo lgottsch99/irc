@@ -1,0 +1,159 @@
+Perfect — let’s break this down so you **only learn what matters for your IRC server project**. You don’t need deep networking theory, just the essentials to make your server work.
+
+---
+
+# ⭐ 1. **IRC uses TCP/IP**
+
+* **TCP** = Transmission Control Protocol
+
+  * Reliable, ordered, stream-oriented communication
+  * Ensures no data is lost or out of order
+  * Every byte you send is guaranteed to arrive (or the connection fails)
+
+* **IP** = Internet Protocol
+
+  * Addresses computers on a network
+  * Can be IPv4 (e.g., 127.0.0.1) or IPv6 (e.g., ::1)
+
+**Bottom line:**
+
+* Your server will use **TCP sockets** over **IPv4 or IPv6**.
+* You do **not** need to implement TCP yourself — the OS does that.
+
+---
+
+# ⭐ 2. **TCP basics for your server**
+
+### 1️⃣ Ports and addresses
+
+* **IP address** → which machine
+* **Port** → which service on that machine (IRC default: 6667)
+* Your server binds to `INADDR_ANY` on a port:
+
+```cpp
+addr.sin_family = AF_INET;
+addr.sin_addr.s_addr = INADDR_ANY;
+addr.sin_port = htons(port);
+bind(server_fd, ...);
+listen(server_fd, 10);
+```
+
+* Clients connect to `IP:PORT`.
+
+---
+
+### 2️⃣ Connection-oriented
+
+* TCP connections must be established:
+
+```
+client: connect()
+server: accept()
+```
+
+* After `accept()`, the server has a new socket for that client.
+
+---
+
+### 3️⃣ Stream-oriented
+
+* TCP is a **stream of bytes**, not messages.
+* Messages can arrive in fragments, combined, or split across packets.
+* Your server must buffer incoming data and detect full IRC lines (ending in `\r\n`).
+
+---
+
+### 4️⃣ Reliability
+
+* You don’t need to handle lost packets — TCP handles it.
+* But you **must handle disconnects**:
+
+  * POLLHUP or recv() returning 0 → client closed connection
+
+---
+
+### 5️⃣ Non-blocking I/O
+
+* TCP sockets are normally blocking → `recv()` waits for data
+* Your server must be **non-blocking**:
+
+```cpp
+fcntl(fd, F_SETFL, O_NONBLOCK);
+```
+
+* Use `poll()` to know **when data is ready**
+
+---
+
+# ⭐ 3. **The minimal TCP/IP “protocol stack” for you**
+
+* **Ethernet / Wi-Fi** → lower layer, handled by OS, ignore
+* **IP** → addressing packets, handled by OS, ignore
+* **TCP** → connection, reliability, flow control, handled by OS
+* **IRC** → your application protocol, handled by *you*
+
+So for this project, the only protocol you need to implement is **IRC itself**.
+
+---
+
+# ⭐ 4. **Other protocols you might touch lightly**
+
+* **IPv4 vs IPv6**
+
+  * Use `AF_INET` for IPv4
+  * Use `AF_INET6` for IPv6
+  * `getaddrinfo()` lets you abstract away the difference
+
+* **Socket options**
+
+  * `SO_REUSEADDR` → allow quick restart
+  * `SO_KEEPALIVE` → optional, keep connection alive
+
+* **Signals**
+
+  * TCP sends SIGPIPE if you write to a closed socket
+  * Catch it and ignore, otherwise your server crashes
+
+---
+
+# ⭐ 5. **Summary: What you need to *really* understand**
+
+1. **TCP socket lifecycle**
+
+   * `socket()` → `bind()` → `listen()` → `accept()` → `recv()/send()` → `close()`
+
+2. **Data is a stream of bytes**
+
+   * Must buffer and parse IRC lines
+
+3. **Non-blocking + poll()**
+
+   * One loop handles all clients
+
+4. **Addresses and ports**
+
+   * Bind to a port
+   * Accept connections from any client
+
+5. **Disconnection detection**
+
+   * POLLHUP, POLLERR, or recv() = 0
+
+6. **Only IRC protocol is your responsibility**
+
+   * Everything else (TCP reliability, packet ordering) is done by OS
+
+---
+
+# 🔹 TL;DR for IRC project
+
+Think of your server like this:
+
+```
+[Client IRC program] <-TCP-> [Your IRC Server] <-TCP-> [Other clients]
+```
+
+* TCP = “telephone line” (reliable byte stream)
+* IRC = “what people actually say” (your code must parse & forward)
+* poll() = “the receptionist” that tells you which lines to answer
+

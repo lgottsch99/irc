@@ -1,0 +1,334 @@
+Here you go — a **clear, practical explanation** of every function you're allowed to use, **why it exists**, and **how you’ll use it in your IRC server project**.
+No fluff — just what helps you build your server.
+
+---
+
+# ✅ **NETWORK & SOCKET FUNCTIONS**
+
+These are the core of your IRC server.
+
+---
+
+## 🔌 **socket**
+
+**What it does:**
+Creates a new socket (file descriptor) for TCP or UDP communication.
+
+**In your project:**
+Used to create:
+
+* the *server* listening socket
+* each *client* connection socket
+
+---
+
+## 🔧 **close**
+
+Closes a file descriptor (socket, file, etc.).
+
+**Usage:**
+
+* when a client disconnects
+* when shutting down the server
+
+---
+
+## ⚙️ **setsockopt**
+
+Configure socket options.
+
+Common usage for servers:
+
+* `SO_REUSEADDR` → allows reusing a port without waiting
+* `SO_KEEPALIVE` → keep connections alive
+* `SO_NOSIGPIPE` (on Mac) → prevent SIGPIPE crashes
+
+---
+
+## 🪪 **getsockname**
+
+Returns the local address/port a socket is bound to.
+
+Useful mainly for:
+
+* debugging
+* confirming the server is bound correctly
+
+---
+
+## 🔍 **getprotobyname**
+
+Looks up protocol info by name, e.g.:
+
+```
+getprotobyname("tcp")
+```
+
+Used typically during socket creation:
+
+```
+socket(AF_INET, SOCK_STREAM, getprotobyname("tcp")->p_proto);
+```
+
+---
+
+## 🌐 **gethostbyname** (OLDER)
+
+Resolves a hostname like `"google.com"` to an IP address.
+Deprecated but allowed.
+
+**Probably not needed** unless you connect *to* another server (you don’t).
+
+---
+
+## 🌐 **getaddrinfo** (MODERN)
+
+Better version of `gethostbyname`.
+
+You will use this to:
+
+* resolve `"localhost"`
+* set up the server’s bind address
+* configure IPv4 or IPv6 cleanly
+
+---
+
+## 🧹 **freeaddrinfo**
+
+Frees the memory allocated by `getaddrinfo`.
+
+---
+
+## 📍 **bind**
+
+Associates a socket with:
+
+* a local IP (usually INADDR_ANY)
+* a port you want to listen on
+
+For your server:
+
+```
+bind(socket_fd, server_addr, sizeof(server_addr));
+```
+
+---
+
+## 📴 **connect**
+
+Used by a *client*, not by your server.
+Your server **won’t use it**, because it accepts inbound connections.
+
+---
+
+## 📣 **listen**
+
+Marks a socket as a passive (server) socket that accepts connections.
+
+Required step:
+
+```
+listen(server_fd, SOMAXCONN);
+```
+
+---
+
+## 🤝 **accept**
+
+When a client connects, `accept()` returns **a new socket** just for that client.
+
+Your server loop will do:
+
+```
+client_fd = accept(server_fd, ...);
+```
+
+The returned `client_fd` is how you communicate with that specific user.
+
+---
+
+# 🧮 BYTE-ORDER CONVERSION
+
+Networking uses **big-endian**, C++ uses **little-endian** on most machines.
+
+---
+
+## 🔁 **htons / htonl**
+
+Host → network byte order (short / long)
+
+Used before binding or sending:
+
+```
+addr.sin_port = htons(port_number);
+```
+
+---
+
+## 🔁 **ntohs / ntohl**
+
+Network → host byte order.
+
+Used when reading port numbers or IPs.
+
+---
+
+# 🌐 IP ADDRESS UTILITY
+
+## 📫 **inet_addr / inet_ntoa**
+
+Old IPv4 helpers:
+
+* `inet_addr("127.0.0.1")` → numeric IP
+* `inet_ntoa(sockaddr.sin_addr)` → string IP
+
+You may use these for logging or parsing.
+
+---
+
+## 📮 **inet_ntop**
+
+Converts numeric IPv4 or IPv6 to string.
+
+Better than `inet_ntoa`.
+Use it for printing addresses after `accept()`.
+
+---
+
+# 📤 / 📥 SENDING AND RECEIVING DATA
+
+## 📥 **recv**
+
+Reads data from a socket.
+
+Your server will use this inside the `poll()` loop to receive client messages.
+
+---
+
+## 📤 **send**
+
+Sends data to a socket.
+
+Used to send IRC messages like:
+
+```
+:server 001 nick :Welcome!
+```
+
+---
+
+# 🛎️ SIGNAL HANDLING
+
+## ⚠️ **signal**
+
+Set up a simple signal handler.
+
+Most useful for:
+
+* catching CTRL+C to shut down cleanly
+
+---
+
+## 🛡️ **sigaction**
+
+Stronger, safer version of `signal()` with more control.
+
+Use this instead of `signal()`.
+
+---
+
+## 🧰 **sigemptyset / sigfillset / sigaddset / sigdelset / sigismember**
+
+These manipulate signal sets.
+
+Used to:
+
+* block certain signals
+* handle SIGPIPE (important)
+* control behavior of your server loop
+
+For this project, usually:
+
+* ignore SIGPIPE (so `send()` doesn’t crash the program)
+
+---
+
+# 📁 FILE DESCRIPTOR UTILITIES
+
+(Most useful for non-blocking mode)
+
+---
+
+## 📌 **lseek**
+
+Move the read/write pointer in a file.
+
+Not usually needed for an IRC server.
+
+---
+
+## 📏 **fstat**
+
+Get file information.
+
+Also usually not required unless logging to files or checking file types.
+
+---
+
+## 🔩 **fcntl**
+
+Control file descriptors:
+
+**VERY IMPORTANT** for your project.
+
+You’ll use:
+
+```
+fcntl(fd, F_SETFL, O_NONBLOCK);
+```
+
+This makes **every socket non-blocking**, which is required.
+
+---
+
+# 🧵 EVENT MULTIPLEXING (non-blocking I/O)
+
+This is the *heart* of your server.
+
+---
+
+## 🧲 **poll**
+
+Waits for multiple file descriptors to become ready to read/write.
+
+Your entire server runs around **one single `poll()` call** in a loop.
+
+Use cases:
+
+* Detect new clients (`POLLIN` on listening socket)
+* Detect client messages (`POLLIN` on client fd)
+* Detect ready-to-write sockets (`POLLOUT`)
+* Handle disconnections (`POLLHUP`, `POLLERR`)
+
+---
+
+# 📦 SUMMARY TABLE
+
+| Function                   | Category | Why you need it                          |
+| -------------------------- | -------- | ---------------------------------------- |
+| `socket`                   | network  | create server + client sockets           |
+| `close`                    | network  | disconnect clients                       |
+| `setsockopt`               | network  | configure sockets (reuseaddr, nosigpipe) |
+| `bind`                     | network  | bind server to IP/port                   |
+| `listen`                   | network  | create listening socket                  |
+| `accept`                   | network  | accept clients                           |
+| `recv` / `send`            | IO       | read/write messages                      |
+| `poll`                     | IO       | event-driven server loop                 |
+| `fcntl`                    | IO       | set non-blocking mode                    |
+| `inet_ntop`, `htonl`, etc. | utility  | convert IPs and ports                    |
+| `signal`, `sigaction`      | signals  | handle SIGPIPE, cleanup                  |
+| `getaddrinfo`              | utility  | setup server address                     |
+
+Everything else is optional but allowed.
+
+

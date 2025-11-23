@@ -1,0 +1,259 @@
+Here is a **clean, conceptual overview** of the *core ideas* behind the IRC server project — the things you **must** understand deeply to succeed.
+
+I’ll keep this high-level and intuitive so you get the big picture before diving into code.
+
+---
+
+# ⭐ 1. **A Non-Blocking TCP Server Handling Many Clients**
+
+Your IRC server is really a:
+
+> **Single-threaded event-driven TCP server using `poll()` to manage multiple sockets at once.**
+
+Core idea:
+
+* Only **one loop**
+* Only **one `poll()`**
+* Every client is a **file descriptor** you monitor
+
+The loop looks like:
+
+1. Poll: “Do any sockets have activity?”
+2. If listening socket readable → accept new client
+3. If client socket readable → receive and process input
+4. If client socket writable → flush outgoing messages
+5. If client disconnected → close and clean up
+
+That’s it.
+This is the *engine* of your IRC server.
+
+---
+
+# ⭐ 2. **IRC Protocol = Text Commands**
+
+IRC uses **plain text lines**, terminated by `\r\n`.
+
+Example client input:
+
+```
+NICK Alice
+USER alice 0 * :Alice Doe
+JOIN #chat
+PRIVMSG #chat :Hello everyone
+```
+
+Each message has:
+
+* command (`NICK`, `JOIN`, …)
+* parameters
+* optional trailing text after `:`
+
+Your server must:
+
+1. **read raw bytes**
+2. **accumulate until you have a full command line**
+3. **parse command and parameters**
+4. **dispatch to a handler (JOIN, PRIVMSG, etc.)**
+5. **send back responses**
+
+This is the *heart* of protocol understanding.
+
+---
+
+# ⭐ 3. **Client Authentication Flow**
+
+A real IRC client expects a very specific login sequence.
+
+A new client must send:
+
+1. PASS `<password>`
+2. NICK `<nickname>`
+3. USER `<username>`
+
+Only when all 3 are valid can the client enter the network.
+
+Your server must:
+
+* accept connections before they are authenticated
+* buffer their commands
+* reject commands other than PASS/NICK/USER until login complete
+* send welcome messages
+
+---
+
+# ⭐ 4. **Users, Channels, and Messages**
+
+IRC is largely about **channels**.
+
+A **Channel**:
+
+* has a name (e.g. `#42`)
+* has members
+* may have operators
+* may have a topic
+* may have modes: `i`, `t`, `k`
+
+A **User**:
+
+* has a nickname
+* has username and realname
+* is in 0+ channels
+* may be an operator in specific channels
+
+## **Messages flow like this:**
+
+### PRIVMSG to channel
+
+User → server → every member of that channel
+
+### PRIVMSG to user
+
+User → server → specific user only
+
+This means your server must maintain:
+
+* a list of channels
+* members per channel
+* sockets per user
+* nicknames → user maps
+
+---
+
+# ⭐ 5. **Channel Modes (Basic “Permissions” System)**
+
+You only need three modes:
+
+| Mode | Meaning                          |
+| ---- | -------------------------------- |
+| `i`  | invite-only                      |
+| `t`  | only operators can set the topic |
+| `k`  | channel has a password           |
+
+Clients use the `MODE` command to modify these:
+
+```
+MODE #chat +i
+MODE #chat +k secret123
+MODE #chat -k
+```
+
+Your server must enforce the rules of these modes.
+
+---
+
+# ⭐ 6. **Operator Commands**
+
+Operators have extra powers inside a channel.
+
+You must implement:
+
+### `KICK` — remove a user from channel
+
+### `INVITE` — invite a user into an invite-only channel
+
+### `TOPIC` — view or change channel topic
+
+### `MODE` — change channel restrictions
+
+You must also enforce permission checks:
+
+* Only operators can set modes
+* Only operators can kick
+* `TOPIC` is restricted if mode `t` is active
+
+This is the IRC “moderation” system.
+
+---
+
+# ⭐ 7. **Send Proper IRC Replies (Numerics)**
+
+IRC uses numeric reply codes:
+
+```
+001 Welcome
+403 No such channel
+433 Nickname in use
+442 You’re not on that channel
+```
+
+Your server must send the correct ones, or clients will behave strangely.
+
+This is essential for compatibility with real clients like irssi, HexChat, etc.
+
+---
+
+# ⭐ 8. **Clean Disconnect Management**
+
+Clients disconnect for many reasons:
+
+* Ctrl+C
+* network drop
+* timeout
+* IRC QUIT command
+
+Your server must:
+
+* detect POLLHUP/POLLERR
+* close sockets
+* remove client from channels
+* notify channel members that the user quit
+
+---
+
+# ⭐ 9. **Strict Line Formatting + State Tracking**
+
+IRC is picky.
+
+Every message must end with:
+
+```
+\r\n
+```
+
+You must store **state** for each client:
+
+* socket fd
+* nickname
+* username
+* whether PASS was provided
+* whether they are fully logged in
+* incoming buffer (partial lines)
+* outgoing buffer
+
+Clients often send **multiple IRC commands in one TCP packet**
+→ your parser must handle that.
+
+Or commands split across packets → your buffer must join fragments.
+
+---
+
+# ⭐ 10. **Server Must Behave Like Real IRC**
+
+The final requirement:
+
+> When tested with a real IRC client (your reference client), your server must feel like a *real* IRC server.
+
+This means:
+
+✔ multiperson chatting works
+✔ private messages work
+✔ joining channels works
+✔ operator commands work
+✔ protocol responses are correct
+✔ the non-blocking server is stable
+
+---
+
+# 📌 **SUMMARY — the IRON CORE of the project**
+
+1. **Non-blocking TCP server with poll()**
+2. **Stateful IRC client management (nick/user/pass)**
+3. **Text-based command parsing**
+4. **Channels system (members, ops, topics, modes)**
+5. **Messaging system (broadcasts, privmsgs)**
+6. **Operator features (kick, invite, mode, topic)**
+7. **Correct numeric replies**
+8. **Disconnect handling**
+9. **Protocol-correct formatting and message flow**
+10. **Compatibility with real IRC clients**
+

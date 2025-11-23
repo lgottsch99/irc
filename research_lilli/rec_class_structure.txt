@@ -1,0 +1,270 @@
+Here is a **clean, realistic, C++98-friendly class structure** for the ft_irc project — the same structure used by many top-scoring teams.
+It keeps responsibilities clean, avoids circular dependencies, and matches how real IRC servers work.
+
+---
+
+# ⭐ **Recommended Class Structure (ft_irc)**
+
+```
+Server
+├── ClientManager
+│     └── Client
+├── ChannelManager
+│     └── Channel
+└── CommandHandler
+      ├── Parse input
+      └── Execute commands
+```
+
+Now let’s break down each component.
+
+---
+
+# 🏢 **1. Server (the core event loop)**
+
+**Responsibilities:**
+
+* Create/bind/listen on the server socket
+* Run the `poll()` loop
+* Accept new connections
+* Pass incoming data to the parser
+* Call command handlers
+* Send outgoing data
+* Maintain fds list for poll()
+
+**Key data fields:**
+
+```cpp
+int _server_fd;
+std::vector<pollfd> _pollfds;
+std::map<int, Client*> _clients; // fd → Client
+ChannelManager _channelManager;
+CommandHandler _cmdHandler;
+std::string _password;
+```
+
+**Key methods:**
+
+```cpp
+void run();
+void acceptClient();
+void disconnectClient(int fd);
+void receiveData(int fd);
+void sendData(int fd);
+```
+
+---
+
+# 👤 **2. Client**
+
+A connected user. Exists as long as socket is open.
+
+**Responsibilities:**
+
+* Store connection info
+* Store user identity (nick/user/realname)
+* Store authentication state
+* Store partial input (buffer)
+* Store outgoing messages
+
+**Key fields:**
+
+```cpp
+int _fd;                 // socket
+std::string _nickname;
+std::string _username;
+std::string _realname;
+bool _hasPass;
+bool _hasNick;
+bool _hasUser;
+bool _isAuthenticated;
+std::string _inBuffer;
+std::string _outBuffer;
+std::set<std::string> _channels; // names of joined channels
+```
+
+**Useful methods:**
+
+```cpp
+void appendToBuffer(const std::string &data);
+bool hasCompleteCommand();
+std::string readCommand();
+void queueMessage(const std::string &msg);
+bool isAuthenticated() const;
+```
+
+---
+
+# 🧵 **3. ClientManager (optional but recommended)**
+
+Keeps Server clean by handling user lookup logic.
+
+**Responsibilities:**
+
+* Find client by nickname
+* Find client by fd
+* Validate nickname uniqueness
+
+**Methods:**
+
+```cpp
+Client* getByFd(int fd);
+Client* getByNick(const std::string &nick);
+bool nicknameAvailable(const std::string &nick);
+void removeClient(Client* c);
+```
+
+---
+
+# 🧩 **4. Channel**
+
+Represents one IRC channel (e.g. `#test`, `#school`).
+
+**Fields:**
+
+```cpp
+std::string _name;
+std::string _topic;
+bool _inviteOnly; // mode +i
+bool _topicOpsOnly; // mode +t
+std::string _key; // mode +k
+std::set<Client*> _members;
+std::set<Client*> _operators;
+std::set<Client*> _invited;
+```
+
+**Key methods:**
+
+```cpp
+void addMember(Client* c);
+void removeMember(Client* c);
+bool isMember(Client* c);
+bool isOperator(Client* c);
+void addOperator(Client* c);
+bool checkKey(const std::string &key);
+void broadcast(Client* sender, const std::string &msg);
+```
+
+---
+
+# 📦 **5. ChannelManager**
+
+Stores and retrieves channels.
+
+**Fields:**
+
+```cpp
+std::map<std::string, Channel*> _channels;
+```
+
+**Methods:**
+
+```cpp
+Channel* get(const std::string &name);
+Channel* createIfNotExists(const std::string &name);
+void removeIfEmpty(Channel* c);
+```
+
+---
+
+# 🗂 **6. CommandHandler**
+
+This is where IRC commands are implemented.
+
+Example structure:
+
+```
+CommandHandler
+├── handlePASS
+├── handleNICK
+├── handleUSER
+├── handleJOIN
+├── handlePART
+├── handlePRIVMSG
+├── handleKICK
+├── handleTOPIC
+├── handleMODE
+└── handleINVITE
+```
+
+**Responsibilities:**
+
+* Parse the command name
+* Validate parameters
+* Check client state (authenticated? operator?)
+* Call ChannelManager to manipulate data
+* Generate server responses and errors (numerics)
+
+**Key method:**
+
+```cpp
+void execute(Client* client, const std::string &cmdLine);
+```
+
+Or, mapped:
+
+```cpp
+typedef void (CommandHandler::*CmdFunc)(Client*, std::vector<std::string>&);
+std::map<std::string, CmdFunc> _commands;
+```
+
+---
+
+# 🗂 **7. Message Parser**
+
+Extracts lines from Client buffers and tokenizes commands.
+
+Example:
+
+```
+":nick!user@host PRIVMSG #chan :hello world"
+```
+
+**Output:**
+
+```cpp
+struct ParsedMsg {
+    std::string prefix;
+    std::string command;
+    std::vector<std::string> params;
+    std::string trailing;
+};
+```
+
+---
+
+# 📐 **8. Recommended Directory Layout**
+
+```
+src/
+  Server.cpp
+  Client.cpp
+  ClientManager.cpp
+  Channel.cpp
+  ChannelManager.cpp
+  CommandHandler.cpp
+  Parser.cpp
+  Utils.cpp
+includes/
+  Server.hpp
+  Client.hpp
+  ClientManager.hpp
+  Channel.hpp
+  ChannelManager.hpp
+  CommandHandler.hpp
+  Parser.hpp
+  Utils.hpp
+Makefile
+```
+
+---
+
+# 🧠 Why this structure works
+
+✔ separates networking from IRC logic
+✔ makes JOIN/PRIVMSG/etc. easy to implement
+✔ each class has a single responsibility
+✔ avoids spaghetti code
+✔ easy to debug
+✔ feels similar to real IRC server designs
+

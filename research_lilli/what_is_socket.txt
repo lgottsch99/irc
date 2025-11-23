@@ -1,0 +1,224 @@
+Here is the **simple, practical explanation** of what a *socket* is — exactly what you need for your IRC server project and nothing more.
+
+---
+
+# ⭐ What is a Socket?
+
+A **socket** is basically a *telephone line* between two programs.
+
+More precisely:
+
+### 🔹 A socket = an endpoint of a communication channel
+
+When your IRC server accepts a connection, it creates a socket.
+The client (irssi) also has a socket.
+
+Together, the two sockets form a **TCP connection**:
+
+```
+(client socket) <--------- TCP ---------> (server socket)
+```
+
+Everything in an IRC server is just:
+
+* reading data from the socket
+* writing data to the socket
+
+That’s *literally* it.
+
+---
+
+# ⭐ What does your server do with sockets?
+
+Your program will:
+
+### 1️⃣ Create a listening socket
+
+This socket waits for new clients:
+
+```cpp
+int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+bind(server_fd, ...);
+listen(server_fd, 10);
+```
+
+This does **not** represent a user — it’s just a door.
+
+---
+
+### 2️⃣ Accept incoming connections
+
+When a client connects, your server does:
+
+```cpp
+int client_fd = accept(server_fd, ...);
+```
+
+This gives you a **new socket** (new file descriptor).
+This one *represents a connected user*.
+
+You create a `Client` object for it.
+
+---
+
+### 3️⃣ Read from the client’s socket
+
+```cpp
+recv(client_fd, buffer, sizeof(buffer), 0);
+```
+
+You receive IRC commands like:
+
+```
+NICK Bob\r\n
+PRIVMSG #chat :hello\r\n
+```
+
+You parse these commands and update your server state.
+
+---
+
+### 4️⃣ Write to the client's socket
+
+```cpp
+send(client_fd, response.c_str(), response.size(), 0);
+```
+
+For example:
+
+```
+:server 001 Bob :Welcome\r\n
+```
+
+The client program (irssi) displays it.
+
+---
+
+# ⭐ What you need to know for ft_irc
+
+You do **NOT** need to learn deep networking theory.
+
+You need these *five concepts*:
+
+---
+
+## 🔹 1. File descriptors
+
+A socket is just a number (an FD).
+
+```
+server_fd = 3
+client_fd = 4
+client_fd = 5
+```
+
+You store them in a vector for `poll()`.
+
+---
+
+## 🔹 2. Non-blocking mode
+
+You must set each fd to non-blocking:
+
+```cpp
+fcntl(fd, F_SETFL, O_NONBLOCK);
+```
+
+This means:
+
+* `recv()` returns immediately
+* `send()` returns immediately
+* Your server NEVER freezes
+
+---
+
+## 🔹 3. poll()
+
+You call `poll()` once per loop to check:
+
+* new connections?
+* any socket ready to read?
+* any socket ready to write?
+
+Example:
+
+```cpp
+poll(_pollfds, _pollfds.size(), -1);
+```
+
+Then you check events:
+
+```cpp
+if (pfd.revents & POLLIN) { ... }  // read available
+if (pfd.revents & POLLOUT) { ... } // write possible
+```
+
+---
+
+## 🔹 4. recv() = incoming IRC commands
+
+Data received can be incomplete, so you append to buffer:
+
+```
+JOIN #chat\r\nPRIVM
+```
+
+Later:
+
+```
+SG #chat :hi\r\n
+```
+
+You must detect complete lines ending in `\r\n`.
+
+---
+
+## 🔹 5. send() = outgoing IRC messages
+
+You must queue outgoing messages until the socket is write-ready.
+
+If a send fails temporarily (EAGAIN), you try again later.
+
+---
+
+# ⭐ The real workflow of your server
+
+Here is how everything fits together ⬇️
+
+```
+Start server
+↓
+Create a listening socket
+↓
+Enter poll() loop
+↓
+(poll detects readable server socket) → accept() new client
+↓
+(poll detects readable client socket) → recv() data
+↓
+parse IRC command
+↓
+update state (channels, nicknames, etc)
+↓
+queue messages to send
+↓
+(poll detects writable socket) → send()
+↓
+repeat
+```
+
+---
+
+# 💡 Summary (super short)
+
+A socket is:
+
+* a file descriptor
+* used for network communication
+* you read from it (recv)
+* you write to it (send)
+* poll() tells you when to do that
+* each connected user = one socket
+
+Everything else in your server is just logic around these sockets.
+
