@@ -1,5 +1,17 @@
 #include "headers/Server.hpp"
 
+/* TODOs
+Server:
+	creating listening socket
+	polling
+	signal handling ctrl d, ctrl c
+
+
+irc interpretation
+
+
+*/
+
 int main(int argc, char *argv[])
 {
 	(void)argv;
@@ -13,7 +25,7 @@ int main(int argc, char *argv[])
 	{
 		Server irc_server(argv);
 		
-		irc_server.run();
+		irc_server.start();
 
 	}
 	catch(const std::exception& e)

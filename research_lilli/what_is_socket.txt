@@ -1,3 +1,12 @@
+
+Socket: "A pipe btw 2 computers ona  network through which data flows"
+both sides of the connection use a socket
+sockets = two-way, data can be both sent&received over same socket
+2 types of sockets: streaming socket (uses TCP), datagram socket (using UDP)
+
+
+
+
 Here is the **simple, practical explanation** of what a *socket* is — exactly what you need for your IRC server project and nothing more.
 
 ---
