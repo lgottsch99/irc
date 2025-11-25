@@ -6,7 +6,7 @@ Server::Server(char *argv[])
 {
 	std::cout << "(Server) Default constructor\n";
 
-	init_serv(argv);
+	check_port_pw(argv);
 }
 
 
@@ -31,6 +31,8 @@ char const *Server::PwInvalidException::what(void) const throw()
 
 //----------- Member Fts ------------
 
+
+void Server::check_port_pw(char *argv[])
 /* checks args to be valid and initiates port & pw
 throws exc: in case of invalid pw / invalid port
 
@@ -38,7 +40,6 @@ throws exc: in case of invalid pw / invalid port
 cat /proc/sys/net/ipv4/ip_local_port_range
 )
 */
-void Server::init_serv(char *argv[])
 {
 	std::string port = argv[1];
 	std::string pw = argv[2];

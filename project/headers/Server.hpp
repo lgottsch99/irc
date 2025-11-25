@@ -13,7 +13,7 @@ class Server {
 		int 		_port_num;
 		std::string	_password;
 
-		void init_serv(char *argv[]);
+		void check_port_pw(char *argv[]);
 		bool only_digits(std::string str);
 	
 	public:
