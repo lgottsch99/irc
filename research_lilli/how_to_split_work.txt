@@ -1,0 +1,268 @@
+Great question — and **super important** for this project.
+An IRC server has many independent parts, so you can split the work so that **no one is waiting on the other**.
+
+Here is the **optimal 2-person task split**, used by many successful teams.
+
+---
+
+# ⭐ **TEAM STRUCTURE (2 PEOPLE)**
+
+```
+Person A → Networking + Event Loop + Sockets
+Person B → IRC Logic + Commands + Channels
+```
+
+Each person works in **their own directory and files**, and you merge later.
+
+This avoids blocking and lets both sides compile independently.
+
+---
+
+# 🧑‍💻 **PERSON A – NETWORK / LOW LEVEL RESPONSIBILITIES**
+
+### 🔹 A.1 Create the Server class
+
+* socket()
+* bind()
+* listen()
+* accept()
+* poll()
+* non-blocking mode
+* fd management
+
+### 🔹 A.2 Create Client class *up to socket-level only*
+
+Person A builds the part needed before IRC logic:
+
+Fields:
+
+```cpp
+int fd;
+std::string inBuffer;
+std::string outBuffer;
+```
+
+Methods:
+
+```cpp
+appendToInput(data);
+queueOutput(data);
+```
+
+NO nickname/username logic — Person B adds those.
+
+### 🔹 A.3 Handle input & output
+
+* poll() detects ready fds
+* read from clients
+* write queued messages to clients
+* disconnect on errors
+
+### 🔹 A.4 Build event callbacks
+
+The Server will call Person B’s logic like this:
+
+```cpp
+commandHandler.handleCommand(client, line);
+```
+
+Person A does NOT parse or understand commands — only forwards lines.
+
+### 🔹 A.5 Finished deliverable (for Person B to use)
+
+Person A delivers:
+
+✔ Server accepts connections
+✔ Server reads complete lines ending in `\r\n`
+✔ Server gives those lines to a callback function
+✔ Server can send outgoing messages
+✔ Server handles disconnects
+✔ Server runs infinitely without freezing
+
+---
+
+# 🧑‍💻 **PERSON B – IRC LOGIC / HIGH-LEVEL RESPONSIBILITIES**
+
+### 🔹 B.1 Complete Client class (identity)
+
+Fields Person B adds:
+
+```cpp
+std::string nickname;
+std::string username;
+bool hasPass, hasNick, hasUser;
+bool authenticated;
+std::set<Channel*> channels;
+```
+
+### 🔹 B.2 Build Channel class
+
+Fields:
+
+```cpp
+std::string name;
+std::set<Client*> members;
+std::set<Client*> operators;
+std::string topic;
+bool inviteOnly;
+std::string key;
+std::set<Client*> invited;
+```
+
+Methods:
+
+```cpp
+broadcast();
+addMember();
+removeMember();
+```
+
+### 🔹 B.3 Implement commands
+
+Person B writes *all IRC logic*:
+
+* PASS
+* NICK
+* USER
+* PRIVMSG
+* JOIN
+* PART
+* MODE (+i +t +k)
+* INVITE
+* KICK
+* TOPIC
+
+Person A doesn’t touch these.
+
+### 🔹 B.4 Command handler interface
+
+Should look like:
+
+```cpp
+void handleCommand(Client* client, const std::string &line);
+```
+
+### 🔹 B.5 Validation + errors + responses
+
+For example, Person B handles:
+
+* nickname already in use
+* channel does not exist
+* not operator
+* wrong password
+* etc.
+
+---
+
+# ⭐ **HOW BOTH PARTS FIT TOGETHER**
+
+```
+Client types "JOIN #chat" in irssi
+           ↓
+(irssi sends message to server via TCP)
+           ↓
+Person A’s code:
+- poll notices
+- recv()
+- builds line "JOIN #chat"
+- calls handleCommand(client, "JOIN #chat")
+           ↓
+Person B’s code:
+- parses command
+- finds/creates channel
+- adds client
+- returns broadcast messages
+           ↓
+Person A’s code:
+- queues messages for sending
+- poll writes them to client sockets
+```
+
+Each person has clear responsibilities.
+
+---
+
+# ⭐ **PARALLEL WORKING WITHOUT BLOCKING**
+
+### 💡 Rule 1: Define interfaces early
+
+Example:
+
+**Person A** defines:
+
+```cpp
+class Server {
+  void onCommand(Client*, const std::string &line);
+};
+```
+
+**Person B** implements:
+
+```cpp
+void Server::onCommand(Client* c, const std::string &line) {
+    commandHandler.handle(c, line);
+}
+```
+
+That’s it — they don’t need each other’s code until merging.
+
+---
+
+### 💡 Rule 2: Agree on Client fields
+
+Person A: `fd, buffers`
+Person B: `nickname, username, channels`
+
+You can even use inheritance:
+
+```cpp
+class Client {
+    // A adds socket stuff
+    // B adds IRC stuff
+}
+```
+
+---
+
+### 💡 Rule 3: Write tests separately
+
+Person A tests network with a dummy handler:
+
+```cpp
+std::cout << "Received: " << line << std::endl;
+```
+
+Person B tests commands without sockets:
+
+```cpp
+MockClient c;
+commandHandler.handle(&c, "NICK test");
+```
+
+---
+
+### 💡 Rule 4: Merge when both halves are stable
+
+Because both halves only depend on simple interfaces, merging is easy.
+
+---
+
+# ⭐ **TASK SPLIT SUMMARY**
+
+| Area                   | Person A | Person B |
+| ---------------------- | -------- | -------- |
+| sockets                | ✔        |          |
+| poll loop              | ✔        |          |
+| non-blocking           | ✔        |          |
+| fd management          | ✔        |          |
+| deliver complete lines | ✔        |          |
+| output queue           | ✔        |          |
+| client identity        |          | ✔        |
+| channel management     |          | ✔        |
+| command parsing        |          | ✔        |
+| operator logic         |          | ✔        |
+| IRC responses          |          | ✔        |
+| numerics               |          | ✔        |
+| message forwarding     |          | ✔        |
+
+
