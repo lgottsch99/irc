@@ -5,7 +5,7 @@
 Server::Server(char *argv[])
 {
 	std::cout << "(Server) Default constructor\n";
-
+	_ServerSocketFd = -1;
 	_check_port_pw(argv);
 }
 
@@ -90,8 +90,8 @@ void Server::start(void)
 */
 {
 	//create listening socket (AF_INET : using IPv4 protocol; SOCK_STREAM: TCP socket (not udp))
-	int serverSocket = socket(AF_INET, SOCK_STREAM, 0); //TODO close fd
-	if (serverSocket == -1)
+	_ServerSocketFd = socket(AF_INET, SOCK_STREAM, 0); //TODO close fd
+	if (_ServerSocketFd == -1)
 	{	
 		throw (std::runtime_error("Error: Could create Server Socket"));
 		return;
@@ -107,11 +107,14 @@ void Server::start(void)
 	serverAddress.sin_port = htons(_port_num); //host to network short, Computers store multi-byte data (like port numbers) using a specific byte order (e.g., Little-Endian on x86 processors). Network protocols use a standard Network Byte Order (Big-Endian) to ensure data is interpreted correctly across different machine types. Purpose: It converts the port number (a 16-bit "short" integer) from the machine's native host byte order to the required network byte order.
 	serverAddress.sin_addr.s_addr = INADDR_ANY; //constant represents the IP address 0.0.0.0 ,  tells the socket to listen for connections on all network interfaces (all available IP addresses) on the host machine.
 
-
+	//TODO nonblocking, reusing address
+	int en = 1;
+	if (setsockopt(_ServerSocketFd, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en)) == -1) //-> set the socket option (SO_REUSEADDR) to reuse the address
+		throw(std::runtime_error("faild to set option (SO_REUSEADDR) on socket"));
 	/* connects the socket file descriptor created in Step 1 to the specific address (IP and Port) defined in sockaddr_in
 	pivotal step where the OS formally reserves the specified port (_port_num) on the machine's network interface(s) and associates it with the serverSocket handle.
 	*/
-	if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
+	if (bind(_ServerSocketFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
 	{	
 		throw (std::runtime_error("Error: Could not bind Server Socket"));
 		return;
@@ -119,11 +122,22 @@ void Server::start(void)
 
 	/* hanges the state of the socket from a general endpoint to a passive listening
 	*/
-	if (listen(serverSocket, 5) == -1)
+	if (listen(_ServerSocketFd, 5) == -1)
 	{	
 		throw (std::runtime_error("Error: Server could not start listening"));
 		return;
 	}
+
+	/* pollfd struct for serversocket, struct used for monitoring file descriptors for I/O events. 
+	It’s commonly employed with the poll() system call to perform multiplexed I/O, allowing a program to efficiently wait for events on
+	multiple file descriptors simultaneously without having to resort to blocking I/O operations.
+	*/
+	struct pollfd NewPoll;
+	NewPoll.fd = _ServerSocketFd;
+	NewPoll.events = POLLIN; //Input -> set the event to POLLIN for reading data
+	NewPoll.revents = 0; //Output -> set to 0 before we call poll(), so that we get actual listening stage
+	_poll_fds.push_back(NewPoll); //-> add the server socket to the pollfd at index 0
+	
 
 	std::cout << "---- SERVER listening on port " << _port_num << std::endl;
 

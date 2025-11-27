@@ -3,6 +3,7 @@
 /* TODOs
 Server:
 	creating listening socket
+	nonblocking
 	polling
 	signal handling ctrl d, ctrl c
 
