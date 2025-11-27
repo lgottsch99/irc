@@ -2,8 +2,6 @@
 
 /* TODOs
 Server:
-	creating listening socket
-	nonblocking
 	polling
 	signal handling ctrl d, ctrl c
 
@@ -24,14 +22,16 @@ int main(int argc, char *argv[])
 
 	try
 	{
-		Server irc_server(argv);
-		
-		irc_server.start();
+		Server irc_server;		
+		irc_server.startup(argv);
+
+		irc_server.poll_loop(); //can be put into startup() ft later
 
 	}
 	catch(const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';
+		//irc_server.server_shutdown();
 	}
 	return 0;
 }

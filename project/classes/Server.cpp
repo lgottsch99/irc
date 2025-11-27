@@ -1,12 +1,15 @@
 #include "../headers/Server.hpp"
 
 //----------- Constructors ------------
+bool Server::_signal_received = false;
+
 //default
-Server::Server(char *argv[])
+Server::Server()
 {
 	std::cout << "(Server) Default constructor\n";
+
 	_ServerSocketFd = -1;
-	_check_port_pw(argv);
+
 }
 
 
@@ -85,10 +88,13 @@ bool Server::_only_digits(std::string str)
 
 
 
-void Server::start(void)
-/* creates listening socket and enters server loop
+void Server::startup(char *argv[])
+/* checks port&password
+then creates listening socket and enters server loop
 */
 {
+	_check_port_pw(argv);
+
 	//create listening socket (AF_INET : using IPv4 protocol; SOCK_STREAM: TCP socket (not udp))
 	_ServerSocketFd = socket(AF_INET, SOCK_STREAM, 0); //TODO close fd
 	if (_ServerSocketFd == -1)
@@ -108,10 +114,14 @@ void Server::start(void)
 	serverAddress.sin_addr.s_addr = INADDR_ANY; //constant represents the IP address 0.0.0.0 ,  tells the socket to listen for connections on all network interfaces (all available IP addresses) on the host machine.
 
 	//TODO nonblocking, reusing address
-	int en = 1;
-	if (setsockopt(_ServerSocketFd, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en)) == -1) //-> set the socket option (SO_REUSEADDR) to reuse the address
-		throw(std::runtime_error("faild to set option (SO_REUSEADDR) on socket"));
-	/* connects the socket file descriptor created in Step 1 to the specific address (IP and Port) defined in sockaddr_in
+	int en = 1; //bool flag to actually SET the socket option. if 0 we disable the option
+	if (setsockopt(_ServerSocketFd, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en)) == -1) //-> set the socket option (SO_REUSEADDR) to immediately reuse the address, helpful for dev
+		throw(std::runtime_error("ERROR: failed to set option (SO_REUSEADDR) on socket"));
+	
+	if (fcntl(_ServerSocketFd, F_SETFL, O_NONBLOCK) == -1) //-> set the socket option (O_NONBLOCK) for non-blocking socket
+		throw(std::runtime_error("ERROR: failed to set option (O_NONBLOCK) on socket"));
+	
+		/* connects the socket file descriptor created in Step 1 to the specific address (IP and Port) defined in sockaddr_in
 	pivotal step where the OS formally reserves the specified port (_port_num) on the machine's network interface(s) and associates it with the serverSocket handle.
 	*/
 	if (bind(_ServerSocketFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
@@ -122,7 +132,7 @@ void Server::start(void)
 
 	/* hanges the state of the socket from a general endpoint to a passive listening
 	*/
-	if (listen(_ServerSocketFd, 5) == -1)
+	if (listen(_ServerSocketFd, SOMAXCONN) == -1) //SOMAXCONN constant representing the maximum allowed backlog for your system
 	{	
 		throw (std::runtime_error("Error: Server could not start listening"));
 		return;
@@ -142,4 +152,73 @@ void Server::start(void)
 	std::cout << "---- SERVER listening on port " << _port_num << std::endl;
 
 
+}
+
+
+void Server::poll_loop(void)
+{
+	while (_signal_received == false) // run server until shutdown sig received
+	{
+
+		//poll
+		if ((poll(&_poll_fds[0], _poll_fds.size(), -1) == -1) && _signal_received == false)
+			throw (std::runtime_error("ERROR: poll failed."));
+
+		//check all fds
+		for (int i = 0; i < (int)_poll_fds.size(); i++)
+		{
+			if (_poll_fds[i].revents & POLLIN) // revents is bitmask, can have multiple states at once, & checks if POLLIN bit is part of bitmask
+			{
+				if (_poll_fds[i].fd == _ServerSocketFd) // server socket has new connection request
+					accept_new_client();
+				else	//client is talking
+					receive_new_data(_poll_fds[i].fd);
+			}
+		}
+
+	}
+	//close all fds
+	server_shutdown();
+
+}
+
+void Server::accept_new_client(void)
+{
+	std::cout << "in accepting new client..." << std::endl;
+
+	//create new client
+
+	//accept new client socket, accept()creates new socket&fd
+
+	//add client to _client_vec
+	//add fd to _poll_fds
+
+	std::cout << "New client connected" << std::endl;
+}
+
+void Server::receive_new_data(int client_socket_fd)
+{
+	(void)client_socket_fd;
+	std::cout << "in receive new data..." << std::endl;
+	//create buffer for data
+	//clear buffer data (might be garbage in it, better to reset)
+	//recv()
+	//check if client disconnected 
+		//if yes clear client and close fd
+		//else process data 
+
+		//CONNECTION POINT TO IRC INTERNAL LOGIC
+
+
+}
+
+
+
+void Server::server_shutdown(void)
+{
+	//close all fds
+	for (int i = 0; i < (int)_poll_fds.size(); i++)
+	{
+		close(_poll_fds[i].fd);
+	}
 }

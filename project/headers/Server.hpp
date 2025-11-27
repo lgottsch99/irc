@@ -12,12 +12,14 @@ class for server, handling general server setup, listening, closing
 #include <sstream>
 #include <cctype> //is digit
 #include <vector>
+#include <unistd.h>
 
 
 #include <sys/socket.h> //socket, bind, listen ect
 #include <netinet/in.h> //IPv4 specific sockaddr_in
 #include <arpa/inet.h> //handling network addr, inet_addr
 #include <poll.h> //-> for poll()
+#include <fcntl.h> //-> for fcntl()
 
 #include "Client.hpp"
 
@@ -34,11 +36,16 @@ class Server {
 		bool _only_digits(std::string str);
 	
 	public:
-		Server(char *argv[]); //constructor
+		Server(void); //constructor
 		~Server(); //destructor
 
+		void startup(char *argv[]);
+		void poll_loop(void);
+		void accept_new_client(void);
+		void receive_new_data(int client_socket_fd);
+		void server_shutdown(void);
 
-		void start(void);
+
 
 };
 
