@@ -39,6 +39,8 @@
 		"execution": "cpp",
 		"ratio": "cpp",
 		"variant": "cpp",
-		"algorithm": "cpp"
+		"algorithm": "cpp",
+		"array": "cpp",
+		"vector": "cpp"
 	}
 }

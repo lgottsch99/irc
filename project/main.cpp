@@ -3,13 +3,15 @@
 /* TODOs
 Server:
 	check empty strings input & num validation
-	polling
-	accepting (enforce pw)
-	signal handling ctrl d, ctrl c
+	new client auth + pw
+	msg and full line extraction
 
+	signal handling ctrl d, ctrl c
+	error handling
 
 irc interpretation
-
+	interal logic of handling cmds
+	creating + tracking of users, channels, modes etc
 
 */
 

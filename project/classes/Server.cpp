@@ -187,28 +187,80 @@ void Server::accept_new_client(void)
 	std::cout << "in accepting new client..." << std::endl;
 
 	//create new client
+	Client NewClient;
+	struct pollfd NewPoll;
+	struct sockaddr_in client_addr; //needed bc accept() needs a place to write addr info
+	socklen_t len = sizeof(client_addr);
 
 	//accept new client socket, accept()creates new socket&fd
+	int newfd = accept(_ServerSocketFd, (sockaddr *)&(client_addr), &len);
+	if (newfd == -1)
+	{
+		std::cout << "Accept() failed" << std::endl;
+		return;
+	}
+
+	if (fcntl(newfd, F_SETFL, O_NONBLOCK) == -1)
+	{
+		std::cout << "setting new socket option fcntl() failed" << std::endl;
+		return;
+	}
+
+	//add new client to pollfd
+	NewPoll.fd = newfd;
+	NewPoll.events = POLLIN; // we want to read data on server
+	NewPoll.revents = 0;
+
+	NewClient.fd = newfd; //TODO maybe make private +getters/setters laetr
+	NewClient.ip_add = inet_ntoa(client_addr.sin_addr); //convert the ip address to string
+
 
 	//add client to _client_vec
+	_client_vec.push_back(NewClient);
 	//add fd to _poll_fds
+	_poll_fds.push_back(NewPoll);
 
 	std::cout << "New client connected" << std::endl;
 }
 
 void Server::receive_new_data(int client_socket_fd)
 {
-	(void)client_socket_fd;
-	std::cout << "in receive new data..." << std::endl;
+	//(void)client_socket_fd;
+	//std::cout << "in receive new data..." << std::endl;
+
 	//create buffer for data
+	char buf[1024];
 	//clear buffer data (might be garbage in it, better to reset)
+	memset(buf, 0, sizeof(buf));
+
 	//recv()
+	ssize_t bytes = recv(client_socket_fd, buf, sizeof(buf) - 1, 0); //buf -1 to reserve space for \0
+
 	//check if client disconnected 
-		//if yes clear client and close fd
-		//else process data 
+	//if yes clear client and close fd
+	//else process data 
+	if (bytes <= 0)
+	{
+		std::cout << "Client disconnected." << std::endl;
+		//TODO clear Client in _client_vec, close its fd
+		close(client_socket_fd);
+	}
+	else
+	{
+		buf[bytes] = '\0';
+		std::cout << "Client " << client_socket_fd << " data: " << buf << std::endl;
+
+
+		//authentication (NICK; PASS; USER CAP LS etc) + server answer 001
 
 		//CONNECTION POINT TO IRC INTERNAL LOGIC
+			//append msg to client buf
+			//extract full line
+			// handle command
+			
+			//handle_command(client, msg);//CONNECTION FUNCTION TO INTERNAL IRC LOGIC
 
+	}
 
 }
 

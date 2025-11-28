@@ -3,11 +3,12 @@ resources:
 
 https://github.com/manettifabrizio/42cursus_ft_irc
 
+basic server setup:
 https://medium.com/@afatir.ahmedfatir/small-irc-server-ft-irc-42-network-7cee848de6f9
 
 https://de.wikipedia.org/wiki/Internet_Relay_Chat
 
-irc rules: https://datatracker.ietf.org/doc/html/rfc1459#section-1.1
+irc rules/protocol: https://datatracker.ietf.org/doc/html/rfc1459#section-1.1
 
 sockets: https://youtu.be/gntyAFoZp-E?si=brvtKmDsr0Bf04Xf
 
@@ -16,4 +17,5 @@ test an irc:
 web based client:
 https://kiwiirc.com/nextclient/
 
-client in terminal eg: irssi (on mac: brew install iris, cmd „irssi“ to start
+client in terminal eg: irssi (on mac: brew install irssi, cmd „irssi“ to start)
+
