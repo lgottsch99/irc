@@ -4,10 +4,14 @@
 /*
 4) CommandHandler
 This is the brain of the IRC server.
+handles auth cmds and all other cmds
+
+
 
 Server calls:
 CommandHandler::execute(client, ParsedCommand)
 You implement one method per command:
+cmdCAP()
 cmdPASS()
 cmdNICK()
 cmdUSER()

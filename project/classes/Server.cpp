@@ -262,7 +262,6 @@ void Server::receive_new_data(int client_socket_fd)
 
 		//append buf to Client.recv_buffer
 		client_ptr->recv_buffer.append(buf);
-
 		std::cout << "\nfull recv buffer:\n" << client_ptr->recv_buffer << std::endl;
 
 		//check if full line received (could be mult. cmds at once)
@@ -280,7 +279,7 @@ void Server::receive_new_data(int client_socket_fd)
 
             // --- CONNECTION POINT: CAP LOGIC HERE ---
             // A minimal parser can just check for the start of the command
-            if (line.rfind("CAP LS", 0) == 0) // Check if line starts with "CAP LS"
+            if (line.rfind("CAP LS", 0) == 0) // Check if line starts with "CAP LS" //TODO -> put in CMDHanlder!!
             {
                 std::cout << "Handling CAP LS..." << std::endl;
                 
@@ -304,7 +303,7 @@ void Server::receive_new_data(int client_socket_fd)
             else
             {
 				//CONNECTION POINT TO IRC INTERNAL LOGIC
-				
+
                 // This is where your main command parser will go
                 CommandParser parser;
                 // ParsedCommand cmd = parser.parse(line);
