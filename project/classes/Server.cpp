@@ -100,7 +100,6 @@ then creates listening socket and enters server loop
 	if (_ServerSocketFd == -1)
 	{	
 		throw (std::runtime_error("Error: Could create Server Socket"));
-		return;
 	}
 
 
@@ -127,7 +126,6 @@ then creates listening socket and enters server loop
 	if (bind(_ServerSocketFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
 	{	
 		throw (std::runtime_error("Error: Could not bind Server Socket"));
-		return;
 	}
 
 	/* hanges the state of the socket from a general endpoint to a passive listening
@@ -135,7 +133,6 @@ then creates listening socket and enters server loop
 	if (listen(_ServerSocketFd, SOMAXCONN) == -1) //SOMAXCONN constant representing the maximum allowed backlog for your system
 	{	
 		throw (std::runtime_error("Error: Server could not start listening"));
-		return;
 	}
 
 	/* pollfd struct for serversocket, struct used for monitoring file descriptors for I/O events. 
@@ -203,6 +200,7 @@ void Server::accept_new_client(void)
 	if (fcntl(newfd, F_SETFL, O_NONBLOCK) == -1)
 	{
 		std::cout << "setting new socket option fcntl() failed" << std::endl;
+		close(newfd);
 		return;
 	}
 
@@ -225,8 +223,6 @@ void Server::accept_new_client(void)
 
 void Server::receive_new_data(int client_socket_fd)
 {
-	//(void)client_socket_fd;
-	//std::cout << "in receive new data..." << std::endl;
 
 	//create buffer for data
 	char buf[1024];
@@ -236,29 +232,67 @@ void Server::receive_new_data(int client_socket_fd)
 	//recv()
 	ssize_t bytes = recv(client_socket_fd, buf, sizeof(buf) - 1, 0); //buf -1 to reserve space for \0
 
+	// get Client to client_fd
+	Client* client_ptr = NULL;
+	for (int i = 0; i < _client_vec.size(); i++)
+	{
+		if (_client_vec[i].fd == client_socket_fd)
+		{	
+			client_ptr = &_client_vec[i];
+			break;
+		}
+	}
+
 	//check if client disconnected 
 	//if yes clear client and close fd
-	//else process data 
 	if (bytes <= 0)
 	{
 		std::cout << "Client disconnected." << std::endl;
 		//TODO clear Client in _client_vec, close its fd
+		//.... 
+
 		close(client_socket_fd);
 	}
-	else
+	else 	//else process data 
 	{
 		buf[bytes] = '\0';
 		std::cout << "Client " << client_socket_fd << " data: " << buf << std::endl;
 
+		//append buf to Client.recv_buffer
+		client_ptr->recv_buffer.append(buf);
 
-		//authentication (NICK; PASS; USER CAP LS etc) + server answer 001
+		//check if full line received (could be mult. cmds at once)
+		std::string &buffer = client_ptr->recv_buffer;
+		size_t pos;
+		while ((pos = buffer.find("\r\n")) != std::string::npos)
+		{
+			// Extract one full IRC message
+			std::string line = buffer.substr(0, pos);
+			
+			// Remove that line from buffer (remove \r\n as well)
+			buffer.erase(0, pos + 2);
+
+			// Empty lines should be ignored (IRC clients sometimes send them)
+			if (line.empty())
+				continue;
+		
+			//TODO   Process command "line"
+			CommandParser parser;
+			ParsedCommand cmd = parser.parse(line);
+			commandHandler.execute(client_ptr, cmd);
+
+		}
+
+
 
 		//CONNECTION POINT TO IRC INTERNAL LOGIC
 			//append msg to client buf
-			//extract full line
+			//check& extract full line
 			// handle command
-			
-			//handle_command(client, msg);//CONNECTION FUNCTION TO INTERNAL IRC LOGIC
+			/*When a full line is received:
+				ParsedCommand cmd = parser.parse(line);
+				commandHandler.execute(client, cmd); //CONNECTION FUNCTION TO INTERNAL IRC LOGIC
+			*/
 
 	}
 

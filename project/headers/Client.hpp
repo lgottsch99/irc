@@ -13,10 +13,19 @@ buffer for partial incoming messages
 channels the client is in
 operator flags, 
 registration state, etc.
+
+
+
+
+Mandatory Methods
+appendToBuffer(const char*)
+extractCompleteLines() → returns std::vector<std::string>
+sendMessage(const std::string&)
 */
 
 #include <string>
 #include <iostream>
+#include "Channel.hpp"
 
 class Client {
 	private:
@@ -27,9 +36,9 @@ class Client {
 		int			fd; //fd for client socket
 		std::string	ip_add;
 
-		std::string msg_buffer; //for incoming messages and leftovers
 		//for auth
-		bool registered;
+		bool authenticated;   // after PASS+NICK+USER succeeds
+		bool registered; // fully connected (001 welcome sent)
 		bool has_sent_pass;
 		bool has_sent_nick;
 		bool has_sent_user;
@@ -37,6 +46,10 @@ class Client {
 		std::string username;
 		std::string realname;
 
+    
+		std::string recv_buffer;     // store partial lines from recv()
+		std::string send_buffer;     // for queued writes if send() would block
+		std::vector<Channel*> channels;  // channels the client is in
 
 
 

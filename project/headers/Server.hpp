@@ -13,6 +13,8 @@ class for server, handling general server setup, listening, closing
 #include <cctype> //is digit
 #include <vector>
 #include <unistd.h>
+#include <map>
+#include "CommandHandler.hpp"
 
 
 #include <sys/socket.h> //socket, bind, listen ect
@@ -30,6 +32,7 @@ class Server {
 		int 						_port_num;
 		std::string					_password;
 		int							_ServerSocketFd;
+		
 		static bool 				_signal_received; // indicating ctrl d or similar received	
 		
 		std::vector<struct pollfd>	_poll_fds; //stores client sockets. i/o listening engine. Index 0 is always the listening server socket. All other indexes correspond to connected client sockets.
@@ -42,6 +45,10 @@ class Server {
 		Server(void); //constructor
 		~Server(); //destructor
 
+		std::map<int, Client*> 			clients;
+		std::map<std::string, Channel*> channels;
+		CommandHandler 					commandHandler;
+
 		//server logic
 		void startup(char *argv[]);
 		void poll_loop(void);
@@ -49,11 +56,10 @@ class Server {
 		void receive_new_data(int client_socket_fd);
 		void server_shutdown(void);
 
-
 		//connection btw server + internal irc logic
-		void handle_command(Client& client, std::string msg); 
+		void handle_command(Client& client, std::string msg); //maybe better inside cmdhandler class!!!
 
-		//internal irc logic
+		//internal irc logic ->cmdhandler
 
 
 

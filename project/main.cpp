@@ -15,6 +15,13 @@ irc interpretation
 
 */
 
+/* QUESTIONS?
+how to send msg back to client? -> send() lol
+
+what could good class design for internal logic be?
+
+*/
+
 int main(int argc, char *argv[])
 {
 	(void)argv;
