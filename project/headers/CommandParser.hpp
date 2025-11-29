@@ -27,6 +27,7 @@ Trailing argument after : is handled here.
 
 #include <string>
 #include <vector>
+#include <iostream>
 
 
 struct ParsedCommand

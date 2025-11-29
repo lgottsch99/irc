@@ -27,6 +27,8 @@ sendMessage(const std::string&)
 #include <iostream>
 #include "Channel.hpp"
 
+class Channel;
+
 class Client {
 	private:
 	public:
@@ -42,11 +44,11 @@ class Client {
 		bool has_sent_pass;
 		bool has_sent_nick;
 		bool has_sent_user;
+		bool cap_negotiated;
 		std::string nickname;
 		std::string username;
 		std::string realname;
 
-    
 		std::string recv_buffer;     // store partial lines from recv()
 		std::string send_buffer;     // for queued writes if send() would block
 		std::vector<Channel*> channels;  // channels the client is in

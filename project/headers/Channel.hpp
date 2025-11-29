@@ -5,6 +5,7 @@
 #include <set>
 #include "Client.hpp"
 
+class Client;
 /*
 
 Methods:
@@ -20,6 +21,9 @@ class Channel
 {
 	private:
 	public:
+		Channel();
+		~Channel();
+
 		std::string name;
 		std::string topic;
 

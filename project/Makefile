@@ -5,7 +5,7 @@ CXX = c++
 
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
-CLASSFILES = classes/Server.cpp classes/Client.cpp
+CLASSFILES = classes/Server.cpp classes/Client.cpp classes/Channel.cpp classes/CommandHandler.cpp classes/CommandParser.cpp
 
 
 SRC = main.cpp $(CLASSFILES)

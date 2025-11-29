@@ -4,11 +4,13 @@
 bool Server::_signal_received = false;
 
 //default
-Server::Server()
+Server::Server(): commandHandler(this)
 {
 	std::cout << "(Server) Default constructor\n";
 
+	_ServerName = "my.local.irc.server";
 	_ServerSocketFd = -1;
+
 
 }
 
@@ -234,7 +236,7 @@ void Server::receive_new_data(int client_socket_fd)
 
 	// get Client to client_fd
 	Client* client_ptr = NULL;
-	for (int i = 0; i < _client_vec.size(); i++)
+	for (int i = 0; i < (int)_client_vec.size(); i++)
 	{
 		if (_client_vec[i].fd == client_socket_fd)
 		{	
@@ -256,45 +258,94 @@ void Server::receive_new_data(int client_socket_fd)
 	else 	//else process data 
 	{
 		buf[bytes] = '\0';
-		std::cout << "Client " << client_socket_fd << " data: " << buf << std::endl;
+		std::cout << "Client " << client_socket_fd << " data: \n" << buf << std::endl;
 
 		//append buf to Client.recv_buffer
 		client_ptr->recv_buffer.append(buf);
 
+		std::cout << "\nfull recv buffer:\n" << client_ptr->recv_buffer << std::endl;
+
 		//check if full line received (could be mult. cmds at once)
 		std::string &buffer = client_ptr->recv_buffer;
 		size_t pos;
-		while ((pos = buffer.find("\r\n")) != std::string::npos)
-		{
-			// Extract one full IRC message
-			std::string line = buffer.substr(0, pos);
+        while ((pos = buffer.find("\r\n")) != std::string::npos)
+        {
+            std::string line = buffer.substr(0, pos);
+            buffer.erase(0, pos + 2);
+
+            if (line.empty())
+                continue;
+
+            std::cout << "Line extracted: " << line << std::endl;
+
+            // --- CONNECTION POINT: CAP LOGIC HERE ---
+            // A minimal parser can just check for the start of the command
+            if (line.rfind("CAP LS", 0) == 0) // Check if line starts with "CAP LS"
+            {
+                std::cout << "Handling CAP LS..." << std::endl;
+                
+                // 1. Send the minimal CAP LS response (no capabilities supported)
+                // This informs the client the server supports CAP but offers nothing.
+                // Format: :<server_name> CAP * LS :
+                std::string cap_ls_response = ":" + _ServerName + " CAP * LS :";
+                send_response(client_socket_fd, cap_ls_response);
+
+                // 2. Send the CAP END response
+                // This is CRITICAL. It tells the client to STOP CAP negotiation
+                // and proceed with the traditional PASS/NICK/USER registration.
+                // Format: CAP * END
+                send_response(client_socket_fd, "CAP * END");
+
+                // You might also want to set a flag on the client
+                // indicating that CAP negotiation is finished.
+                client_ptr->cap_negotiated = true; // Requires adding this member to your Client class
+            }
+            // else if (line.rfind("CAP", 0) == 0) { ... handle other CAP commands ... }
+            else
+            {
+				//CONNECTION POINT TO IRC INTERNAL LOGIC
+				
+                // This is where your main command parser will go
+                CommandParser parser;
+                // ParsedCommand cmd = parser.parse(line);
+                // commandHandler.execute(client_ptr, cmd);
+            }
+        }
+    }
+	// 	size_t pos;
+	// 	while ((pos = buffer.find("\r\n")) != std::string::npos)
+	// 	{
+	// 		// Extract one full IRC message
+	// 		std::string line = buffer.substr(0, pos);
 			
-			// Remove that line from buffer (remove \r\n as well)
-			buffer.erase(0, pos + 2);
+	// 		// Remove that line from buffer (remove \r\n as well)
+	// 		buffer.erase(0, pos + 2);
 
-			// Empty lines should be ignored (IRC clients sometimes send them)
-			if (line.empty())
-				continue;
+	// 		// Empty lines should be ignored (IRC clients sometimes send them)
+	// 		if (line.empty())
+	// 			continue;
 		
-			//TODO   Process command "line"
-			CommandParser parser;
-			ParsedCommand cmd = parser.parse(line);
-			commandHandler.execute(client_ptr, cmd);
+	// 		std::cout << "Line extracted: " << line << std::endl;
+			
+			
+	// 		//TODO   Process command "line"
+	// 		CommandParser parser;
+	// 		// ParsedCommand cmd = parser.parse(line); //TODO
+	// 		// commandHandler.execute(client_ptr, cmd); //TODO
 
-		}
+	// 	}
 
 
+	// 	//CONNECTION POINT TO IRC INTERNAL LOGIC
+	// 		//append msg to client buf
+	// 		//check& extract full line
+	// 		// handle command
+	// 		/*When a full line is received:
+	// 			ParsedCommand cmd = parser.parse(line);
+	// 			commandHandler.execute(client, cmd); //CONNECTION FUNCTION TO INTERNAL IRC LOGIC
+	// 		*/
 
-		//CONNECTION POINT TO IRC INTERNAL LOGIC
-			//append msg to client buf
-			//check& extract full line
-			// handle command
-			/*When a full line is received:
-				ParsedCommand cmd = parser.parse(line);
-				commandHandler.execute(client, cmd); //CONNECTION FUNCTION TO INTERNAL IRC LOGIC
-			*/
-
-	}
+	// }
 
 }
 
@@ -307,4 +358,12 @@ void Server::server_shutdown(void)
 	{
 		close(_poll_fds[i].fd);
 	}
+}
+
+// Server::send_response - A conceptual helper function to send data to a client
+void Server::send_response(int client_socket_fd, const std::string& message)
+{
+    // IRC responses MUST end with \r\n
+    std::string full_response = message + "\r\n";
+    send(client_socket_fd, full_response.c_str(), full_response.length(), 0);
 }

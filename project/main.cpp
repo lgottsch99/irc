@@ -35,7 +35,9 @@ int main(int argc, char *argv[])
 	
 	try
 	{	
+		std::cout <<"starting server\n";
 		irc_server.startup(argv);
+		std::cout <<"starting polling\n";
 		irc_server.poll_loop(); //can be put into startup() ft later
 
 	}

@@ -49,6 +49,8 @@ class Server {
 		std::map<std::string, Channel*> channels;
 		CommandHandler 					commandHandler;
 
+		std::string _ServerName;
+
 		//server logic
 		void startup(char *argv[]);
 		void poll_loop(void);
@@ -56,8 +58,9 @@ class Server {
 		void receive_new_data(int client_socket_fd);
 		void server_shutdown(void);
 
-		//connection btw server + internal irc logic
-		void handle_command(Client& client, std::string msg); //maybe better inside cmdhandler class!!!
+		void send_response(int client_socket_fd, const std::string& message);
+		//connection btw server + internal irc logic -> cmdhandler class!!!
+		//void handle_command(Client& client, std::string msg); //maybe better inside cmdhandler class!!!
 
 		//internal irc logic ->cmdhandler
 

@@ -10,6 +10,8 @@ Client::Client(void)
 	has_sent_pass = false;
 	has_sent_nick = false;
 	has_sent_user = false;
+	authenticated = false;
+	cap_negotiated = false;
 
 }
 Client::~Client()
