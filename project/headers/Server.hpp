@@ -8,6 +8,9 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "Client.hpp"
 
@@ -17,11 +20,13 @@ private:
     int         _port;
     std::string _password;
     int         _serverSocketFd;
+	static bool _signal; //-> static boolean for signal, to shutdown in clean way
 
     std::vector<struct pollfd> _pollfds; 
 
 	void _shutdown(void);
 	bool _str_is_digit(std::string str);
+	void _validate_args(char *argv[]);
 
 public:
     Server();
@@ -36,6 +41,7 @@ public:
     // Name → Channel object
     //std::map<std::string, Channel*> Channels;
 
+	static void SignalHandler(int signum);
 
     void init(char *argv[]);
     // void pollLoop();

@@ -19,7 +19,6 @@ int main(int argc, char *argv[])
 	{	
 		std::cout <<"init server\n";
 		irc_server.init(argv);
-		std::cout <<"starting polling\n";
 		// irc_server.pollLoop(); //can be put into startup() ft later
 
 	}

@@ -1,0 +1,7 @@
+
+??????
+
+
+can a socket send & read at same time? or do i need to check POLLIN & POLLOUT before sending?
+
+if i use only nonblocking sockets, in combo with poll() how do i need to design the error handling?
