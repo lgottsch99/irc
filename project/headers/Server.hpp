@@ -6,51 +6,49 @@
 #include <vector>
 #include <poll.h>
 #include <iostream>
+#include <sstream>
+#include <algorithm>
+
 #include "Client.hpp"
-#include "Channel.hpp"
-#include "CommandHandler.hpp"
-#include "CommandParser.hpp"
+
 
 class Server {
 private:
     int         _port;
     std::string _password;
-    int         _listenFd;
+    int         _serverSocketFd;
 
-    std::vector<pollfd> _pollfds;
+    std::vector<struct pollfd> _pollfds; 
 
-    // int FD → Client object
-    std::map<int, Client*> _clients;
-
-    // Name → Channel object
-    std::map<std::string, Channel*> _channels;
-
-    CommandHandler* _commandHandler;
-    CommandParser    _parser;
-
-    void _setupSocket();
-    void _addPollFd(int fd);
-    void _removePollFd(int fd);
-    pollfd* _getPollFd(int fd);
-
+	void _shutdown(void);
+	bool _str_is_digit(std::string str);
 
 public:
     Server();
     ~Server();
 
-    void start(char *argv[]);
-    void pollLoop();
-	void shutdown();
+	//CommandHandler* CmdHandler;
+    //CommandParser   Parser;
 
-    void acceptNewClient();
-    void receiveData(int fd);
+    // int FD → Client object
+    std::map<int, Client*> Clients;
+
+    // Name → Channel object
+    //std::map<std::string, Channel*> Channels;
+
+
+    void init(char *argv[]);
+    // void pollLoop();
+
+    // void acceptNewClient();
+    // void receiveData(int fd);
 
     // called by handler to server
     void sendResponse(int fd, const std::string& msg); //INTERFACE  handler -> server
 
     // Accessors for handler
-    std::map<int, Client*>& getClients();
-    std::map<std::string, Channel*>& getChannels();
+    // std::map<int, Client*>& getClients();
+    // std::map<std::string, Channel*>& getChannels();
 	// void	disconnectClient(Client* client);
 	// void	removeChannel(const std::string& name);
 
