@@ -1,0 +1,189 @@
+Here is a **complete, clear, minimal explanation of how to set up a signal handler using `sigaction()`** — including **the needed structs, fields, meaning of each, and a clean example**.
+
+---
+
+# ✅ **1. Why `sigaction()` instead of `signal()`?**
+
+`sigaction()` is the modern, correct way because it:
+
+* avoids race conditions
+* has predictable behavior
+* allows blocking other signals during the handler
+* supports advanced flags like `SA_RESTART`, `SA_NOCLDWAIT`, etc.
+
+---
+
+# ✅ **2. The required struct: `struct sigaction`**
+
+Defined in `<signal.h>`:
+
+```c
+struct sigaction {
+    void (*sa_handler)(int);    // OR
+    void (*sa_sigaction)(int, siginfo_t*, void*);
+
+    sigset_t sa_mask;           // signals to block during handler
+    int      sa_flags;          // behavior flags (SA_RESTART, SA_SIGINFO, ...)
+};
+```
+
+Meaning:
+
+### **sa_handler**
+
+Pointer to your simple handler:
+
+```cpp
+void handler(int sig);
+```
+
+### **sa_sigaction**
+
+Advanced handler with more info:
+
+```cpp
+void handler(int sig, siginfo_t *info, void *context);
+```
+
+You must set the flag `SA_SIGINFO` to use this variant.
+
+### **sa_mask**
+
+A signal set (bitmask) that tells the kernel:
+
+> “While my handler is running, block these other signals.”
+
+Commonly set to empty:
+
+```cpp
+sigemptyset(&sa.sa_mask);
+```
+
+### **sa_flags**
+
+Flags modifying behavior.
+
+Common ones:
+
+| Flag           | Meaning                                    |
+| -------------- | ------------------------------------------ |
+| `SA_RESTART`   | Restart interrupted syscalls automatically |
+| `SA_SIGINFO`   | Use `sa_sigaction` instead of `sa_handler` |
+| `SA_NODEFER`   | Don’t block the signal you’re handling     |
+| `SA_NOCLDWAIT` | Don’t create zombies on SIGCHLD            |
+| `SA_NOCLDSTOP` | Ignore stopped/continued children          |
+
+For simple handlers, set:
+
+```cpp
+sa.sa_flags = 0;
+```
+
+or:
+
+```cpp
+sa.sa_flags = SA_RESTART;
+```
+
+---
+
+# ✅ **3. Setting up the handler with sigaction()**
+
+### Minimal safe example (for SIGINT and SIGTERM)
+
+```cpp
+#include <signal.h>
+#include <unistd.h> // for write()
+
+volatile sig_atomic_t g_stop = 0;
+
+void handle_signal(int sig) {
+    g_stop = 1; // Safe global flag
+}
+
+void setup_signal_handlers() {
+    struct sigaction sa;
+
+    sa.sa_handler = handle_signal;   // simple handler
+    sigemptyset(&sa.sa_mask);        // no extra signals blocked
+    sa.sa_flags = 0;                 // or SA_RESTART
+
+    sigaction(SIGINT, &sa, NULL);    // Ctrl-C
+    sigaction(SIGTERM, &sa, NULL);   // kill <pid>
+}
+```
+
+---
+
+# 🧠 What happens under the hood?
+
+1. You call `sigaction(SIGINT, &sa, NULL)`
+2. Kernel stores your handler in its internal signal table
+3. When SIGINT occurs:
+
+   * kernel interrupts your program
+   * runs your handler function
+   * sets your flag
+4. Your program resumes where it left off (unless interrupted syscall fails)
+
+---
+
+# 🟦 **4. Using the advanced handler (optional)**
+
+This gives access to info like:
+
+* PID of sender
+* UID of sender
+* memory address that caused segfault
+* etc
+
+```cpp
+void advanced_handler(int sig, siginfo_t *info, void *ctx) {
+    write(1, "Handled signal\n", 15);
+}
+
+void setup() {
+    struct sigaction sa;
+    sa.sa_sigaction = advanced_handler;
+    sigemptyset(&sa.sa_mask);
+
+    sa.sa_flags = SA_SIGINFO;  // tells kernel to use sa_sigaction
+
+    sigaction(SIGSEGV, &sa, NULL);
+}
+```
+
+---
+
+# 🟢 **5. Typical server setup**
+
+You usually install handlers for:
+
+```cpp
+sigaction(SIGINT, &sa, NULL);   // CTRL-C
+sigaction(SIGTERM, &sa, NULL);  // kill <pid>
+signal(SIGPIPE, SIG_IGN);       // avoid broken pipe crashes
+```
+
+---
+
+# ⭐ Final Summary
+
+To use `sigaction()`:
+
+1. **Create a `struct sigaction sa;`**
+2. **Set `sa.sa_handler` or `sa.sa_sigaction`**
+3. **Initialize `sa.sa_mask` with `sigemptyset()`**
+4. **Set `sa.sa_flags` (often 0 or `SA_RESTART`)**
+5. **Call `sigaction(signal_number, &sa, NULL)`**
+
+This gives you:
+
+✔ Reliable signal handling
+✔ Avoids race conditions
+✔ Safe for use in network servers
+✔ More flexible than `signal()`
+
+---
+
+If you want, I can generate a **plug-and-play, production-ready signal handler module** for your server project.

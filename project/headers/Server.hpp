@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <string.h>
 #include <vector>
 #include <poll.h>
 #include <iostream>
@@ -11,6 +12,11 @@
 #include <signal.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <fcntl.h>
+#include <cerrno>
+
 
 #include "Client.hpp"
 
@@ -24,9 +30,13 @@ private:
 
     std::vector<struct pollfd> _pollfds; 
 
-	void _shutdown(void);
+	// void _shutdown(void);
 	bool _str_is_digit(std::string str);
 	void _validate_args(char *argv[]);
+	void _setup_signal_handling(void);
+	void _accept_new_client(void);
+	void _receive_data(int client_fd);
+
 
 public:
     Server();
@@ -44,10 +54,8 @@ public:
 	static void SignalHandler(int signum);
 
     void init(char *argv[]);
-    // void pollLoop();
-
-    // void acceptNewClient();
-    // void receiveData(int fd);
+    void pollLoop();
+	void shutdown(void);
 
     // called by handler to server
     void sendResponse(int fd, const std::string& msg); //INTERFACE  handler -> server

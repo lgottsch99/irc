@@ -19,13 +19,13 @@ int main(int argc, char *argv[])
 	{	
 		std::cout <<"init server\n";
 		irc_server.init(argv);
-		// irc_server.pollLoop(); //can be put into startup() ft later
+		irc_server.pollLoop();
 
 	}
 	catch(const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';
-		// irc_server.shutdown();
+		irc_server.shutdown();
 	}
 	return 0;
 }

@@ -1,8 +1,6 @@
 TODOS
 
-signals for clean shutdown
-
-set socket options to nonblocking
+signals for clean shutdown (what about sigpipe?)
 
 nonblocking error handling
 

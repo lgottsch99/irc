@@ -19,7 +19,7 @@ Server::~Server()
 	std::cout << "(Server) Destructor\n";
 
 	//close all open sockets / fds
-	_shutdown();
+	shutdown();
 }
 
 
@@ -29,13 +29,24 @@ Server::~Server()
 /* clean exit of server in case of error or stop signal
 	-> closes all existing socket connections & fds
 */
-void Server::_shutdown(void)
+void Server::shutdown(void)
 {
 	//TODO
 
+	//close existing connections?
 
-	if (_serverSocketFd != -1)
-		close(_serverSocketFd);
+	//delete all client instances
+	for (std::map<int, Client*>::iterator it = Clients.begin(); it != Clients.end(); it++)
+		delete it->second;
+	// remove map container
+	Clients.clear();
+
+	//go thru pollfd struct and close all open fds (includes Servsocket!)
+	for (int i = 0; i < (int)_pollfds.size(); i++)
+	{
+		if (_pollfds[i].fd >= 0)
+			close(_pollfds[i].fd);
+	}
 }
 
 /* handling ctrl c, ctrl / for server shutdown
@@ -43,8 +54,23 @@ void Server::_shutdown(void)
 void Server::SignalHandler(int signum)
 {
 	(void)signum;
-	std::cout << std::endl << "Signal Received!" << std::endl;
 	Server::_signal = true; //-> set the static boolean to true to stop the server
+}
+
+void Server::_setup_signal_handling(void)
+{
+	struct sigaction sa;
+	sa.sa_handler = &Server::SignalHandler;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+
+	sigaction(SIGINT, &sa, NULL); //ctrl c
+	sigaction(SIGQUIT, &sa, NULL); //ctrl backslash
+	sigaction(SIGTERM, &sa, NULL); //kill
+
+	//SIGPIPE needed???? TODO
+
 }
 
 /* checking if each char is numeric
@@ -70,13 +96,9 @@ void Server::_validate_args(char *argv[])
 	//check port not empty
 	if (!port.empty())
 	{
-		std::cout << "port: " << port << std::endl;
-
 		//check port numbers only and within valid range between 0 and 65535
 		if (_str_is_digit(port))
 		{
-			std::cout << "Port only digits\n";
-
 			std::stringstream ss;
 			int num;
 
@@ -95,10 +117,7 @@ void Server::_validate_args(char *argv[])
 
 	//check pw not empty
 	if (!pw.empty())
-	{
-		std::cout << "pw: " << pw << std::endl;
 		_password = pw;
-	}
 	else
 		throw std::runtime_error("ERROR: PASSWORD cannot be empty.");
 
@@ -111,19 +130,33 @@ void Server::_validate_args(char *argv[])
 void Server::init(char* argv[])
 {
 	_validate_args(argv);
-	std::cout << "Port is: " << _port << std::endl << "Pw is: " << _password << std::endl << "CREATING SEERVER SOCKET NOW!" << std::endl;
+	std::cout << "Port is: " << _port << std::endl << "Pw is: " << _password << std::endl << "CREATING SERVER SOCKET...\n" << std::endl;
+
+	_setup_signal_handling();
 
 	//server socket (socket - setoptions - bind - listen)
-
-	int _serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
+	_serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_serverSocketFd == -1)
+	{
+		std::cerr << "errno = " << errno << std::endl;
 		throw std::runtime_error("ERROR: Server socket creation failed.");
+	}
 	
 	//set socket conf
-		//NONBLOCKING + (Reuseaddr for dev)
-	//TODO
+		//(Reuseaddr for dev)
+	int enable = 1;
+	if (setsockopt(_serverSocketFd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1)//SOL_SOCKET: option on socket level, 
+	{
+		close(_serverSocketFd);
+		throw std::runtime_error("ERROR: setting SO_REUSEADDR failed.");
+	}
 
-
+		// NONBLOCKING
+	if (fcntl(_serverSocketFd, F_SETFL, O_NONBLOCK) == -1)
+	{
+		close(_serverSocketFd);
+		throw std::runtime_error("ERROR: setting O_NONBLOCK failed.");
+	}
 
 	/*
 	struct sockaddr_in {
@@ -133,20 +166,107 @@ void Server::init(char* argv[])
 	};
 	*/
 	struct sockaddr_in address; //holding all network conf that our sockets need (doc https://man7.org/linux/man-pages/man3/sockaddr.3type.html)
+	memset(&address, 0, sizeof(address));  // preventing garbage
 	address.sin_family = AF_INET; //-> set address family to ipv4
-	address.sin_port = htons((uint16_t)_port); // convert port to network byte order (big endian), network always uses big e, most modern machines little e
+	address.sin_port = htons(_port); // convert port to network byte order (big endian), network always uses big e, most modern machines little e
 	address.sin_addr.s_addr = INADDR_ANY; //INADDR_ANY is a constant (0.0.0.0) defined in <netinet/in.h> (alternative: address.sin_addr.s_addr = inet_addr("192.168.1.100"))
 
-
 	//bind to addr
-	if (bind(_serverSocketFd, (const struct sockaddr) &address, sizeof(address)) == -1)
+	if (bind(_serverSocketFd, (const struct sockaddr*) &address, sizeof(address)) == -1)
+	{
+		close(_serverSocketFd);
+		if (errno == 13)
+			throw std::runtime_error("ERROR: Server socket bind failed. Use port > 1024");
 		throw std::runtime_error("ERROR: Server socket bind failed.");
+	}
 
 	//make it a server side socket -> listen
 	if (listen(_serverSocketFd, SOMAXCONN) == -1) // SOMAXCONN is system dependend max value of backlog(man listen) -> makes it portable
+	{
+		close(_serverSocketFd);
 		throw std::runtime_error("ERROR: Server socket listen failed.");
+	}
+
+	//add server socket to poll struct
+	struct pollfd NewPoll;
+	NewPoll.fd = _serverSocketFd;
+	NewPoll.events = POLLIN; //serv socket is only listening at start
+	NewPoll.revents = 0;
+	_pollfds.push_back(NewPoll);
+
+	std::cout << "SERVER SOCKET READY!" << std::endl;
+}
+
+/* loop checks if any data is incoming on any socket, then decides how to process the data
+*/
+void Server::pollLoop(void)
+{
+	std::cout << "Starting to poll...\n";
+
+	while (Server::_signal == false) //run until sig received
+	{
+		// std::cout << "waiting...\n";
+
+		//poll
+		//READ: check all sockets for incoming data
+		if (poll(&_pollfds[0], _pollfds.size(), -1) == -1 && Server::_signal == false)
+			throw std::runtime_error("ERROR: poll() failed.");
+
+		for (size_t i = 0; i < _pollfds.size(); i++)
+		{
+			if (_pollfds[i].revents == POLLIN) //data to READ
+			{
+				if (_pollfds[i].fd == _serverSocketFd) //new client wants to connect
+					_accept_new_client();
+				else
+					_receive_data(_pollfds[i].fd); //get data from registered client
+			}
+
+			// if (_pollfds[i].revents == POLLOUT) //possible to write
+			
+			//TODO
+		}		
+	}
+}
+
+/* creates CLIENT class & corresponding socket
+*/
+void Server::_accept_new_client(void)
+{
+	std::cout << "accepting new client....\n";
+
+	Client *NewClient = new Client;
+	struct pollfd newpollfd;
+	struct sockaddr_in clientaddr;
+
+	socklen_t len = sizeof(clientaddr);
+	//accept (create new socket)
+	int clientfd = accept(_serverSocketFd, (sockaddr *)&clientaddr, &len);
+	if (clientfd == -1)
+		throw std::runtime_error("ERROR: accepting new connection.");
+
+	//set new socket opt NONBLOCK
+	if (fcntl(clientfd, F_SETFL, O_NONBLOCK) == -1)
+		throw std::runtime_error("ERROR: NEW CLIENT setting O_NONBLOCK failed.");
 
 
+	//create new pollfd for poll()
+	newpollfd.fd = clientfd;
+	newpollfd.events = POLLIN;
+	newpollfd.revents = 0;
+	_pollfds.push_back(newpollfd);
 
+	//create new Client instance
+	NewClient->fd = clientfd;
+	NewClient->ip_address = inet_ntoa(clientaddr.sin_addr); //conv net addr to string
+	Clients.insert(std::make_pair(clientfd, NewClient)); //add to client map
+
+	std::cout << "NEW CLIENT ACCEPTED!" << std::endl;
+	
+}
+
+
+void Server::_receive_data(int fd)
+{
 
 }
