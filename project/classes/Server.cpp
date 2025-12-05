@@ -27,7 +27,8 @@ Server::~Server()
 // ------------ Member FTs -----------------------------
 
 /* clean exit of server in case of error or stop signal
-	-> closes all existing socket connections & fds
+	-> closes all existing socket connections
+	->clears ALL Clients & data
 */
 void Server::shutdown(void)
 {
@@ -48,6 +49,34 @@ void Server::shutdown(void)
 			close(_pollfds[i].fd);
 	}
 }
+
+/* removes single client
+
+!!! Client *irc connection* needs to be CLOSED at this point
+*/
+void Server::remove_single_client(int client_fd)
+{
+	std::cout << "Removing a client..\n";
+
+
+	//delete & erase Client Instance from map
+	std::map<int, Client*>::iterator it = Clients.find(client_fd);
+	delete (it->second);
+	Clients.erase(it);
+
+	std::vector<struct pollfd>::iterator pit = _pollfds.begin();
+	while (pit != _pollfds.end())
+	{
+		if (pit->fd == client_fd)
+		{
+			_pollfds.erase(pit);
+			break;
+		}
+		pit++;
+	}
+	close(client_fd);
+}
+
 
 /* handling ctrl c, ctrl / for server shutdown
 */
@@ -197,7 +226,9 @@ void Server::init(char* argv[])
 	std::cout << "SERVER SOCKET READY!" << std::endl;
 }
 
-/* loop checks if any data is incoming on any socket, then decides how to process the data
+/* loop checks if any data is incoming on any socket, 
+	then decides how to process the data
+	->runs forever until signal (ctrl c, ctrl \) or crash
 */
 void Server::pollLoop(void)
 {
@@ -249,7 +280,6 @@ void Server::_accept_new_client(void)
 	if (fcntl(clientfd, F_SETFL, O_NONBLOCK) == -1)
 		throw std::runtime_error("ERROR: NEW CLIENT setting O_NONBLOCK failed.");
 
-
 	//create new pollfd for poll()
 	newpollfd.fd = clientfd;
 	newpollfd.events = POLLIN;
@@ -262,11 +292,45 @@ void Server::_accept_new_client(void)
 	Clients.insert(std::make_pair(clientfd, NewClient)); //add to client map
 
 	std::cout << "NEW CLIENT ACCEPTED!" << std::endl;
-	
 }
 
-
+/* reads incoming data, passes it to PARSER & HANDLER
+*/
 void Server::_receive_data(int fd)
 {
+	char buf[1024];
+	memset(buf, 0, sizeof(buf)); //avoid garbage
 
+	ssize_t bytes = recv(fd, &buf, sizeof(buf) - 1, 0);
+	
+	//check if client disconnected (bytes -1 or 0) 
+	if (bytes <= 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) //EAGAIN & EWOULDBLOCK signal try again later -> not real error
+		remove_single_client(fd);
+	else //process data
+	{
+		buf[bytes] = '\0';
+		std::cout << buf << std::endl;
+
+		//append to client recv buffer
+		std::map<int, Client*>::iterator it = Clients.find(fd);
+		it->second->recv_buf.append(buf);
+
+		//extract full lines if any
+		bool lines_available = true;
+		while (lines_available)
+		{
+			std::string line = it->second->extract_line();
+			if (line.empty())
+			{
+				lines_available = false;
+				break;
+			}
+		
+			//PASS to PARSER
+			std::cout << "-----> SENDING LINE TO PARSE: " << line << std::endl;
+			
+			//PASS to HANDLER	
+			
+		}
+	}
 }

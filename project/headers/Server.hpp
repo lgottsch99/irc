@@ -57,9 +57,13 @@ public:
     void pollLoop();
 	void shutdown(void);
 
+	void remove_single_client(int client_fd);
+
     // called by handler to server
     void sendResponse(int fd, const std::string& msg); //INTERFACE  handler -> server
 
+
+	
     // Accessors for handler
     // std::map<int, Client*>& getClients();
     // std::map<std::string, Channel*>& getChannels();
