@@ -28,15 +28,13 @@ private:
     int         _serverSocketFd;
 	static bool _signal; //-> static boolean for signal, to shutdown in clean way
 
-    std::vector<struct pollfd> _pollfds; 
+    std::vector<struct pollfd> _pollfds;
 
-	// void _shutdown(void);
 	bool _str_is_digit(std::string str);
 	void _validate_args(char *argv[]);
 	void _setup_signal_handling(void);
 	void _accept_new_client(void);
 	void _receive_data(int client_fd);
-
 
 public:
     Server();

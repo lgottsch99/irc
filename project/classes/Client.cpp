@@ -18,11 +18,11 @@ Client::~Client()
 
 // ------------ Member FTs -----------------------------
 
-/* checks if recv buffer includes a full line.
-If yes: returns that single line and updates recv buffer accordingly
+/* checks if recv_buffer includes a full irc command line.
+If yes: returns that single line and removes it from recv buffer
 Returns:
-		single line string 
-	OR 	"" (empty str)
+		single line string, (if full irc cmd present)
+	OR 	"" (empty str), (if no full cmd presnt)
 */
 std::string Client::extract_line(void)
 {

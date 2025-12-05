@@ -325,12 +325,13 @@ void Server::_receive_data(int fd)
 				lines_available = false;
 				break;
 			}
-		
+
 			//PASS to PARSER
 			std::cout << "-----> SENDING LINE TO PARSE: " << line << std::endl;
-			
-			//PASS to HANDLER	
-			
+			// struct ParsedCommand cmd = CommandParser::parse(line);
+
+			//PASS to HANDLER
+			// CommandHandler.handle(cmd);
 		}
 	}
 }
