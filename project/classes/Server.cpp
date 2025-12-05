@@ -256,6 +256,8 @@ void Server::pollLoop(void)
 			// if (_pollfds[i].revents == POLLOUT) //possible to write
 			
 			//TODO
+
+
 		}		
 	}
 }
@@ -315,7 +317,7 @@ void Server::_receive_data(int fd)
 		std::map<int, Client*>::iterator it = Clients.find(fd);
 		it->second->recv_buf.append(buf);
 
-		//extract full lines if any
+		//extract full lines if any, send each individually to PARSE + HANDLE
 		bool lines_available = true;
 		while (lines_available)
 		{
