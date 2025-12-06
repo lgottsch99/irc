@@ -50,20 +50,44 @@ void Server::shutdown(void)
 	}
 }
 
-/* removes single client
+/* marking a client to be disconnected (eg after QUIT or error)
+*/
+void Server::markClientToDisconnect(int client_fd)
+{
+	_clients_to_disconnect.push_back(client_fd);
+}
 
+/* (SERVER INTERNAL LOGIC)
+removing all clients&sockets that had errors or dsconnected
+*/
+void Server::_disconnect_clients(void)
+{
+	if (_clients_to_disconnect.size() == 0) //no clients to disconnect
+		return;
+	
+	std::vector<int>::iterator it = _clients_to_disconnect.end(); //end() i spast last elem
+	it--;
+	while (!_clients_to_disconnect.empty())
+	{
+		int client_fd = _clients_to_disconnect.back();
+		_remove_single_client(client_fd);
+		_clients_to_disconnect.pop_back();
+	}
+}
+
+/* removes single client
 !!! Client *irc connection* needs to be CLOSED at this point
 */
-void Server::remove_single_client(int client_fd)
+void Server::_remove_single_client(int client_fd)
 {
 	std::cout << "Removing a client..\n";
-
 
 	//delete & erase Client Instance from map
 	std::map<int, Client*>::iterator it = Clients.find(client_fd);
 	delete (it->second);
 	Clients.erase(it);
 
+	//remove pollfd struct
 	std::vector<struct pollfd>::iterator pit = _pollfds.begin();
 	while (pit != _pollfds.end())
 	{
@@ -74,6 +98,8 @@ void Server::remove_single_client(int client_fd)
 		}
 		pit++;
 	}
+
+	//close client socket
 	close(client_fd);
 }
 
@@ -106,6 +132,8 @@ void Server::_setup_signal_handling(void)
 */
 bool Server::_str_is_digit(std::string str)
 {
+	std::cout << "str is digit\n";
+
 	for (size_t i = 0; i < str.length(); i++)
 	{
 		if (std::isdigit(str[i]) == 0)
@@ -119,8 +147,12 @@ bool Server::_str_is_digit(std::string str)
 */
 void Server::_validate_args(char *argv[])
 {
+	std::cout << "val args\n";
+
 	std::string port = argv[1];
 	std::string pw = argv[2];
+
+	std::cout << "2\n";
 
 	//check port not empty
 	if (!port.empty())
@@ -236,16 +268,13 @@ void Server::pollLoop(void)
 
 	while (Server::_signal == false) //run until sig received
 	{
-		// std::cout << "waiting...\n";
-
 		//poll
-		//READ: check all sockets for incoming data
 		if (poll(&_pollfds[0], _pollfds.size(), -1) == -1 && Server::_signal == false)
 			throw std::runtime_error("ERROR: poll() failed.");
 
 		for (size_t i = 0; i < _pollfds.size(); i++)
 		{
-			if (_pollfds[i].revents == POLLIN) //data to READ
+			if (_pollfds[i].revents & POLLIN) //data to READ
 			{
 				if (_pollfds[i].fd == _serverSocketFd) //new client wants to connect
 					_accept_new_client();
@@ -253,12 +282,13 @@ void Server::pollLoop(void)
 					_receive_data(_pollfds[i].fd); //get data from registered client
 			}
 
-			// if (_pollfds[i].revents == POLLOUT) //possible to write
-			
-			//TODO
-
-
-		}		
+			if (_pollfds[i].revents & POLLOUT) //data to SEND
+			{
+				//TODO
+				_sendMsgBuf(&_pollfds[i]);
+			}
+		}
+		_disconnect_clients();	
 	}
 }
 
@@ -293,7 +323,11 @@ void Server::_accept_new_client(void)
 	NewClient->ip_address = inet_ntoa(clientaddr.sin_addr); //conv net addr to string
 	Clients.insert(std::make_pair(clientfd, NewClient)); //add to client map
 
+
 	std::cout << "NEW CLIENT ACCEPTED!" << std::endl;
+
+	// std::string sendTest = "lololool\r\n";
+	// replyToClient(NewClient, sendTest);
 }
 
 /* reads incoming data, passes it to PARSER & HANDLER
@@ -307,7 +341,10 @@ void Server::_receive_data(int fd)
 	
 	//check if client disconnected (bytes -1 or 0) 
 	if (bytes <= 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) //EAGAIN & EWOULDBLOCK signal try again later -> not real error
-		remove_single_client(fd);
+		//TODO add client to dosconnect queue ->disconnect at right time in poll loop
+		_clients_to_disconnect.push_back(fd);
+
+	
 	else //process data
 	{
 		buf[bytes] = '\0';
@@ -337,3 +374,63 @@ void Server::_receive_data(int fd)
 		}
 	}
 }
+
+
+
+/* (SERVER INTERNAL LOGIC) 
+actual sending of clients' send buf by Server poll()
+param: 
+		pollfd* pfd : pointer to pollfd struct for certain client
+*/
+void Server::_sendMsgBuf(pollfd* pfd)
+{
+	//get clients send buf
+	std::map<int, Client*>::iterator it = Clients.find(pfd->fd);
+	if (it == Clients.end())
+		return; //client disconnected
+
+	Client *c = it->second;
+
+	ssize_t bytes = send(pfd->fd, c->send_buf.data(), c->send_buf.length(), 0);
+	
+	if (bytes > 0)//some bytes were sent
+	{
+		//remove from sending buf
+		c->send_buf.erase(0, bytes);
+
+		//remove POLLOUT if buf now empty
+		if (c->send_buf.empty())
+			pfd->events &= ~POLLOUT; //remove POLLOUT but keep POLLIN (bitmask: ~ flipp all bits, A &= B keeps only the bits that are 1 in BOTH A AND B.)
+	}
+	else if (bytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+	{
+		return;
+	}
+	else if (bytes < 0 && !(errno == EAGAIN || errno == EWOULDBLOCK)) //fatal error OR client disconnected
+	{
+		//mark client to disconnect
+		_clients_to_disconnect.push_back(pfd->fd);
+	}
+}
+
+
+
+/* (INTERFACE HANDLING -> SERVER)
+adds message (msg) to send to client (indicated by Client*) to outgoing send buf
+-> next poll iteration is gonna pick it up and send when ready
+*/
+void Server::replyToClient(Client* client, const std::string& msg)
+{
+ //add msg to send_buf of client, (msg needs to be irc protocol conform)
+	client->send_buf += msg;
+
+ //enable POLLOUT on client's pollfd (so that server understands it needs to send sth)
+	//get pollfd of client
+	std::vector<struct pollfd>::iterator it = _pollfds.begin(); //might need to improve in case of client disconnected TODO
+	while (it->fd != client->fd)
+		it++;
+
+	it->events |= POLLOUT; // adds POLLOUT while keeping POLLIN (bitmask)
+}
+
+

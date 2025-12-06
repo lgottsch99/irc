@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 	
 	try
 	{	
-		std::cout <<"init server\n";
+		std::cout << "init server\n";
 		irc_server.init(argv);
 		irc_server.pollLoop();
 

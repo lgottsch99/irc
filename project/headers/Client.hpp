@@ -15,6 +15,7 @@ class Client
 		int fd; //client socket fd. needed by server
 		std::string ip_address; // client ip. mainly for identification and logging
 		std::string recv_buf; //buffer for incoming data. needed by server
+		std::string send_buf; //buffer to send msg back to client (numeric replies or chat msgs). needed by server
 
 		std::string extract_line(void); //needed by server
 		

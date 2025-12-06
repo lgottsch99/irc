@@ -4,11 +4,5 @@ signals for clean shutdown (what about sigpipe?)
 
 nonblocking error handling
 
-polling 
-
-accepting clients
-
-receiving data
-
-sending msg to single client
+sending msg to single client: check length, cannot be too long
 
