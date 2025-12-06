@@ -251,7 +251,6 @@ Splits msgs longer than 512 bytes into multiple msgs.
 param: 
 		pollfd* pfd : pointer to pollfd struct for certain client
 
-
 */
 void Server::_sendMsgBuf(pollfd* pfd)
 {
