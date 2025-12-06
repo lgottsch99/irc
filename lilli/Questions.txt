@@ -1,9 +1,8 @@
 
 ??????
 
-
-can a socket send & read at same time? or do i need to check POLLIN & POLLOUT before sending?
-
 if i use only nonblocking sockets, in combo with poll() how do i need to design the error handling?
 
-does server need to check length of incoming data?
+does server need to check length of incoming data? YES
+
+How do we handle msgs that are outgoing & longer than 512 bytes? Is this even going to happen?

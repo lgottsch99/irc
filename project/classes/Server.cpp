@@ -24,38 +24,9 @@ Server::~Server()
 
 
 
-// ------------ Member FTs -----------------------------
+// ------------ Member FTs -------------------------------------------------
 
-/* clean exit of server in case of error or stop signal
-	-> closes all existing socket connections
-	->clears ALL Clients & data
-*/
-void Server::shutdown(void)
-{
-	//TODO
-
-	//close existing connections?
-
-	//delete all client instances
-	for (std::map<int, Client*>::iterator it = Clients.begin(); it != Clients.end(); it++)
-		delete it->second;
-	// remove map container
-	Clients.clear();
-
-	//go thru pollfd struct and close all open fds (includes Servsocket!)
-	for (int i = 0; i < (int)_pollfds.size(); i++)
-	{
-		if (_pollfds[i].fd >= 0)
-			close(_pollfds[i].fd);
-	}
-}
-
-/* marking a client to be disconnected (eg after QUIT or error)
-*/
-void Server::markClientToDisconnect(int client_fd)
-{
-	_clients_to_disconnect.push_back(client_fd);
-}
+//PRIVATE ----------------
 
 /* (SERVER INTERNAL LOGIC)
 removing all clients&sockets that had errors or dsconnected
@@ -101,31 +72,6 @@ void Server::_remove_single_client(int client_fd)
 
 	//close client socket
 	close(client_fd);
-}
-
-
-/* handling ctrl c, ctrl / for server shutdown
-*/
-void Server::SignalHandler(int signum)
-{
-	(void)signum;
-	Server::_signal = true; //-> set the static boolean to true to stop the server
-}
-
-void Server::_setup_signal_handling(void)
-{
-	struct sigaction sa;
-	sa.sa_handler = &Server::SignalHandler;
-
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-
-	sigaction(SIGINT, &sa, NULL); //ctrl c
-	sigaction(SIGQUIT, &sa, NULL); //ctrl backslash
-	sigaction(SIGTERM, &sa, NULL); //kill
-
-	//SIGPIPE needed???? TODO
-
 }
 
 /* checking if each char is numeric
@@ -185,111 +131,20 @@ void Server::_validate_args(char *argv[])
 }
 
 
-/* initializing server, creating server socket
-	-> throws EXCEPTIONS if invalid
-*/
-void Server::init(char* argv[])
+void Server::_setup_signal_handling(void)
 {
-	_validate_args(argv);
-	std::cout << "Port is: " << _port << std::endl << "Pw is: " << _password << std::endl << "CREATING SERVER SOCKET...\n" << std::endl;
+	struct sigaction sa;
+	sa.sa_handler = &Server::SignalHandler;
 
-	_setup_signal_handling();
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
 
-	//server socket (socket - setoptions - bind - listen)
-	_serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
-	if (_serverSocketFd == -1)
-	{
-		std::cerr << "errno = " << errno << std::endl;
-		throw std::runtime_error("ERROR: Server socket creation failed.");
-	}
-	
-	//set socket conf
-		//(Reuseaddr for dev)
-	int enable = 1;
-	if (setsockopt(_serverSocketFd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1)//SOL_SOCKET: option on socket level, 
-	{
-		close(_serverSocketFd);
-		throw std::runtime_error("ERROR: setting SO_REUSEADDR failed.");
-	}
+	sigaction(SIGINT, &sa, NULL); //ctrl c
+	sigaction(SIGQUIT, &sa, NULL); //ctrl backslash
+	sigaction(SIGTERM, &sa, NULL); //kill
 
-		// NONBLOCKING
-	if (fcntl(_serverSocketFd, F_SETFL, O_NONBLOCK) == -1)
-	{
-		close(_serverSocketFd);
-		throw std::runtime_error("ERROR: setting O_NONBLOCK failed.");
-	}
+	//SIGPIPE needed???? TODO
 
-	/*
-	struct sockaddr_in {
-    sa_family_t    sin_family; // AF_INET
-    in_port_t      sin_port;   // port
-    struct in_addr sin_addr;   // IP address
-	};
-	*/
-	struct sockaddr_in address; //holding all network conf that our sockets need (doc https://man7.org/linux/man-pages/man3/sockaddr.3type.html)
-	memset(&address, 0, sizeof(address));  // preventing garbage
-	address.sin_family = AF_INET; //-> set address family to ipv4
-	address.sin_port = htons(_port); // convert port to network byte order (big endian), network always uses big e, most modern machines little e
-	address.sin_addr.s_addr = INADDR_ANY; //INADDR_ANY is a constant (0.0.0.0) defined in <netinet/in.h> (alternative: address.sin_addr.s_addr = inet_addr("192.168.1.100"))
-
-	//bind to addr
-	if (bind(_serverSocketFd, (const struct sockaddr*) &address, sizeof(address)) == -1)
-	{
-		close(_serverSocketFd);
-		if (errno == 13)
-			throw std::runtime_error("ERROR: Server socket bind failed. Use port > 1024");
-		throw std::runtime_error("ERROR: Server socket bind failed.");
-	}
-
-	//make it a server side socket -> listen
-	if (listen(_serverSocketFd, SOMAXCONN) == -1) // SOMAXCONN is system dependend max value of backlog(man listen) -> makes it portable
-	{
-		close(_serverSocketFd);
-		throw std::runtime_error("ERROR: Server socket listen failed.");
-	}
-
-	//add server socket to poll struct
-	struct pollfd NewPoll;
-	NewPoll.fd = _serverSocketFd;
-	NewPoll.events = POLLIN; //serv socket is only listening at start
-	NewPoll.revents = 0;
-	_pollfds.push_back(NewPoll);
-
-	std::cout << "SERVER SOCKET READY!" << std::endl;
-}
-
-/* loop checks if any data is incoming on any socket, 
-	then decides how to process the data
-	->runs forever until signal (ctrl c, ctrl \) or crash
-*/
-void Server::pollLoop(void)
-{
-	std::cout << "Starting to poll...\n";
-
-	while (Server::_signal == false) //run until sig received
-	{
-		//poll
-		if (poll(&_pollfds[0], _pollfds.size(), -1) == -1 && Server::_signal == false)
-			throw std::runtime_error("ERROR: poll() failed.");
-
-		for (size_t i = 0; i < _pollfds.size(); i++)
-		{
-			if (_pollfds[i].revents & POLLIN) //data to READ
-			{
-				if (_pollfds[i].fd == _serverSocketFd) //new client wants to connect
-					_accept_new_client();
-				else
-					_receive_data(_pollfds[i].fd); //get data from registered client
-			}
-
-			if (_pollfds[i].revents & POLLOUT) //data to SEND
-			{
-				//TODO
-				_sendMsgBuf(&_pollfds[i]);
-			}
-		}
-		_disconnect_clients();	
-	}
 }
 
 /* creates CLIENT class & corresponding socket
@@ -347,11 +202,16 @@ void Server::_receive_data(int fd)
 	
 	else //process data
 	{
-		buf[bytes] = '\0';
-		std::cout << buf << std::endl;
+		std::cout << "received: " << buf << std::endl;
 
-		//append to client recv buffer
+		//append to client recv buffer (but check against overflow)
 		std::map<int, Client*>::iterator it = Clients.find(fd);
+		if (it->second->recv_buf.size() + bytes > MAX_RECV_BUF)
+		{
+			replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
+			markClientToDisconnect(it->first);
+			return;
+		}
 		it->second->recv_buf.append(buf);
 
 		//extract full lines if any, send each individually to PARSE + HANDLE
@@ -365,22 +225,33 @@ void Server::_receive_data(int fd)
 				break;
 			}
 
-			//PASS to PARSER
-			std::cout << "-----> SENDING LINE TO PARSE: " << line << std::endl;
-			// struct ParsedCommand cmd = CommandParser::parse(line);
+			if (line.length() < 510) //IRC Protocol: msg MUST NOT b elonger than 512 bytes total
+			{
+				//PASS to PARSER
+				std::cout << "-----> SENDING LINE TO PARSE: " << line << std::endl;
+				// struct ParsedCommand cmd = CommandParser::parse(line);
 
-			//PASS to HANDLER
-			// CommandHandler.handle(cmd);
+				//PASS to HANDLER
+				// CommandHandler.handle(client, cmd);
+			}
+			else
+			{
+				replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
+				markClientToDisconnect(it->first);
+				break;
+			}
 		}
 	}
 }
 
-
-
 /* (SERVER INTERNAL LOGIC) 
-actual sending of clients' send buf by Server poll()
+actual sending of clients' send buf by Server poll().
+Splits msgs longer than 512 bytes into multiple msgs.
+
 param: 
 		pollfd* pfd : pointer to pollfd struct for certain client
+
+
 */
 void Server::_sendMsgBuf(pollfd* pfd)
 {
@@ -390,6 +261,8 @@ void Server::_sendMsgBuf(pollfd* pfd)
 		return; //client disconnected
 
 	Client *c = it->second;
+
+	//TODO check max msg size/ buf size TODO
 
 	ssize_t bytes = send(pfd->fd, c->send_buf.data(), c->send_buf.length(), 0);
 	
@@ -410,6 +283,156 @@ void Server::_sendMsgBuf(pollfd* pfd)
 	{
 		//mark client to disconnect
 		_clients_to_disconnect.push_back(pfd->fd);
+	}
+}
+
+
+
+//PUBLIC  ----------------------------------------------------------------------------------------------
+
+/* clean exit of server in case of error or stop signal
+	-> closes all existing socket connections
+	->clears ALL Clients & data
+*/
+void Server::shutdown(void)
+{
+	//TODO
+	//close existing connections?
+
+	//delete all client instances
+	for (std::map<int, Client*>::iterator it = Clients.begin(); it != Clients.end(); it++)
+		delete it->second;
+	
+	// remove map container
+	Clients.clear();
+
+	//go thru pollfd struct and close all open fds (includes Servsocket!)
+	for (int i = 0; i < (int)_pollfds.size(); i++)
+	{
+		if (_pollfds[i].fd >= 0)
+			close(_pollfds[i].fd);
+	}
+}
+
+/* marking a client to be disconnected (eg after QUIT or error)
+*/
+void Server::markClientToDisconnect(int client_fd)
+{
+	_clients_to_disconnect.push_back(client_fd);
+}
+
+
+/* handling ctrl c, ctrl / for server shutdown
+*/
+void Server::SignalHandler(int signum)
+{
+	(void)signum;
+	Server::_signal = true; //-> set the static boolean to true to stop the server
+}
+
+
+/* initializing server, creating server socket
+	-> throws EXCEPTIONS if invalid
+*/
+void Server::init(char* argv[])
+{
+	_validate_args(argv);
+	std::cout << "Port is: " << _port << std::endl << "Pw is: " << _password << std::endl << "CREATING SERVER SOCKET...\n" << std::endl;
+
+	_setup_signal_handling();
+
+	//server socket (socket - setoptions - bind - listen)
+	_serverSocketFd = socket(AF_INET, SOCK_STREAM, 0);
+	if (_serverSocketFd == -1)
+	{
+		std::cerr << "errno = " << errno << std::endl;
+		throw std::runtime_error("ERROR: Server socket creation failed.");
+	}
+	
+	//set socket conf
+		//(Reuseaddr for dev)
+	int enable = 1;
+	if (setsockopt(_serverSocketFd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1)//SOL_SOCKET: option on socket level, 
+	{
+		close(_serverSocketFd);
+		throw std::runtime_error("ERROR: setting SO_REUSEADDR failed.");
+	}
+		// NONBLOCKING
+	if (fcntl(_serverSocketFd, F_SETFL, O_NONBLOCK) == -1)
+	{
+		close(_serverSocketFd);
+		throw std::runtime_error("ERROR: setting O_NONBLOCK failed.");
+	}
+
+	/*
+	struct sockaddr_in {
+    sa_family_t    sin_family; // AF_INET
+    in_port_t      sin_port;   // port
+    struct in_addr sin_addr;   // IP address
+	};
+	*/
+	struct sockaddr_in address; //holding all network conf that our sockets need (doc https://man7.org/linux/man-pages/man3/sockaddr.3type.html)
+	memset(&address, 0, sizeof(address));  // preventing garbage
+	address.sin_family = AF_INET; //-> set address family to ipv4
+	address.sin_port = htons(_port); // convert port to network byte order (big endian), network always uses big e, most modern machines little e
+	address.sin_addr.s_addr = INADDR_ANY; //INADDR_ANY is a constant (0.0.0.0) defined in <netinet/in.h> (alternative: address.sin_addr.s_addr = inet_addr("192.168.1.100"))
+
+	//bind to addr
+	if (bind(_serverSocketFd, (const struct sockaddr*) &address, sizeof(address)) == -1)
+	{
+		close(_serverSocketFd);
+		if (errno == 13)
+			throw std::runtime_error("ERROR: Server socket bind failed. Use port > 1024");
+		throw std::runtime_error("ERROR: Server socket bind failed.");
+	}
+
+	//make it a server side socket -> listen
+	if (listen(_serverSocketFd, SOMAXCONN) == -1) // SOMAXCONN is system dependend max value of backlog(man listen) -> makes it portable
+	{
+		close(_serverSocketFd);
+		throw std::runtime_error("ERROR: Server socket listen failed.");
+	}
+
+	//add server socket to poll struct
+	struct pollfd NewPoll;
+	NewPoll.fd = _serverSocketFd;
+	NewPoll.events = POLLIN; //serv socket is only listening at start
+	NewPoll.revents = 0;
+	_pollfds.push_back(NewPoll);
+
+	std::cout << "SERVER SOCKET READY!" << std::endl;
+}
+
+/* loop checks if any data is incoming on any socket, 
+	then decides how to process the data
+	->runs forever until signal (ctrl c, ctrl \) or crash
+*/
+void Server::pollLoop(void)
+{
+	// std::cout << "Starting to poll...\n";
+
+	while (Server::_signal == false) //run until sig received
+	{
+		//poll
+		if (poll(&_pollfds[0], _pollfds.size(), -1) == -1 && Server::_signal == false)
+			throw std::runtime_error("ERROR: poll() failed.");
+
+		for (size_t i = 0; i < _pollfds.size(); i++)
+		{
+			if (_pollfds[i].revents & POLLIN) //data to READ
+			{
+				if (_pollfds[i].fd == _serverSocketFd) //new client wants to connect
+					_accept_new_client();
+				else
+					_receive_data(_pollfds[i].fd); //get data from registered client
+			}
+			if (_pollfds[i].revents & POLLOUT) //data to SEND
+			{
+				//TODO
+				_sendMsgBuf(&_pollfds[i]);
+			}
+		}
+		_disconnect_clients();	
 	}
 }
 

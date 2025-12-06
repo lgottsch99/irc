@@ -3,6 +3,11 @@ TODOS
 signals for clean shutdown (what about sigpipe?)
 
 nonblocking error handling
+->what does errno == EAGAIN || errno == EWOULDBLOCK actually mean???
 
-sending msg to single client: check length, cannot be too long
 
+msg buffer length: check length, cannot be too long 510 bytes +clrf
+sending error checking
+
+
+                                                                     

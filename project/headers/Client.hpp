@@ -23,9 +23,6 @@ class Client
 		std::string username; //sername of the client on that host. comes with USER cmd
 		std::string realname; //real name/address of the host that the client is connecting from. comes with USER cmd
 
-
-
-
 };
 
 #endif

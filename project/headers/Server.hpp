@@ -21,6 +21,9 @@
 #include "Client.hpp"
 
 
+
+#define MAX_RECV_BUF 10000 //how big does it need to be?
+
 class Server {
 private:
     int         _port;
@@ -61,17 +64,11 @@ public:
     void pollLoop();
 	void shutdown(void);
 
-
-    // called by handler to server
-    void replyToClient(Client* client, const std::string& msg); //INTERFACE  handler -> server
-
-	void markClientToDisconnect(int client_fd);
 	
-    // Accessors for handler
-    // std::map<int, Client*>& getClients();
-    // std::map<std::string, Channel*>& getChannels();
-	// void	disconnectClient(Client* client);
-	// void	removeChannel(const std::string& name);
+	void markClientToDisconnect(int client_fd);
+
+    //INTERFACE  handler -> server
+    void replyToClient(Client* client, const std::string& msg);
 
 
 };
