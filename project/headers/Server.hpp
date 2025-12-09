@@ -19,7 +19,7 @@
 
 
 #include "Client.hpp"
-
+//todo incl handling headers
 
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?
@@ -50,9 +50,6 @@ public:
     Server();
     ~Server();
 
-	//CommandHandler* CmdHandler;
-    //CommandParser   Parser;
-
     // int FD → Client object
     std::map<int, Client*> Clients;
 
@@ -65,12 +62,13 @@ public:
     void pollLoop();
 	void shutdown(void);
 
+	//INTERFACE handler -> server for disconnecting a client 
 	void markClientToDisconnect(int client_fd);
 
-    //INTERFACE  handler -> server
+    //INTERFACE  handler -> server for sending msg
     void replyToClient(Client* client, const std::string& msg); //msg needs to be correclty formatted for irc
 	
-std::string& formatReply(Client* client, std::string prefix, std::string command, std::vector<std::string> &params, std::string trailing);
+	std::string getPassword(void);
 
 
 };

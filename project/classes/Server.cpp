@@ -179,7 +179,10 @@ void Server::_accept_new_client(void)
 	// replyToClient(NewClient, sendTest);
 }
 
-/* reads incoming data, passes it to PARSER & HANDLER
+
+/* INTERFACE SERVER -> PARSER & HANDLER
+
+reads incoming data, passes it to PARSER & HANDLER
 */
 void Server::_receive_data(int fd)
 {
@@ -190,10 +193,8 @@ void Server::_receive_data(int fd)
 	
 	//check if client disconnected (bytes -1 or 0) 
 	if (bytes <= 0 && (errno != EAGAIN && errno != EWOULDBLOCK)) //EAGAIN & EWOULDBLOCK signal try again later -> not real error
-		//TODO add client to dosconnect queue ->disconnect at right time in poll loop
 		_clients_to_disconnect.push_back(fd);
 
-	
 	else //process data
 	{
 		std::cout << "received: " << buf << std::endl;
@@ -202,7 +203,8 @@ void Server::_receive_data(int fd)
 		std::map<int, Client*>::iterator it = Clients.find(fd);
 		if (it->second->recv_buf.size() + bytes > MAX_RECV_BUF)
 		{
-			replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
+			//TODO correct response
+			//replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
 			markClientToDisconnect(it->first);
 			return;
 		}
@@ -221,31 +223,22 @@ void Server::_receive_data(int fd)
 
 			if (line.length() < 510) //IRC Protocol: msg MUST NOT b elonger than 512 bytes total
 			{
+
+				//    INTERFACE SERVER -> PARSER & HANDLER
+
 				//PASS to PARSER
 				std::cout << "-----> SENDING LINE TO PARSE: " << line << std::endl;
 				// struct ParsedCommand cmd = CommandParser::parse(line);
 
 				//PASS to HANDLER
-				// CommandHandler.handle(client, cmd);
-
-
-				//testingonly
-				std::vector<std::string> params;
-				params.push_back("bob");
-				std::string trailing = "Welcome to IRC, bob";
+				// CommandHandler.handle(client, cmd);	
 				
-
-
-				// replyToClient(it->second, ":ft_irc 001 bob :Welcome to IRC, bob!\r\n");
-				formatReply(it->second, _serverName, "001", params, trailing);
-				// replyToClient(it->second, ":ft_irc 002 bob :Your host is ft_irc, running version V1\r\n");
-				// replyToClient(it->second, ":ft_irc 003 bob :This server was created tpaday\r\n");
-				// replyToClient(it->second, ":ft_irc 004 bob ft_irc 1.0 o iklot\r\n");
-		
+				
 			}
 			else //TODO test
 			{
-				replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
+				//TODO send correct response
+				//replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
 				markClientToDisconnect(it->first);
 				break;
 			}
@@ -297,6 +290,7 @@ void Server::_sendMsgBuf(pollfd* pfd)
 
 
 //PUBLIC  ----------------------------------------------------------------------------------------------
+
 
 /* clean exit of server in case of error or stop signal
 	-> closes all existing socket connections
@@ -445,7 +439,7 @@ void Server::pollLoop(void)
 
 
 
-/* (INTERFACE HANDLING -> SERVER)
+/* (INTERFACE HANDLING -> SERVER) USE THIS TO SEND ANY MSG TO A CLIENT
 
 !!!!  param msg needs to be correclty formatted for IRC
 
@@ -466,39 +460,7 @@ void Server::replyToClient(Client* client, const std::string& msg)
 	it->events |= POLLOUT; // adds POLLOUT while keeping POLLIN (bitmask)
 }
 
-
-
-
-
-/* ADD TO PARSER
- formatter function for consistent irc conform responses from server
-*/
-std::string& Server::formatReply(Client * client, 
-						std::string prefix, 
-						std::string command, //or num reply code
-						std::vector<std::string> &params, 
-						std::string trailing)
+std::string Server::getPassword(void)
 {
-	std::string formatted;
-
-	//prefix + command
-	formatted = ":" + prefix + " " + command; //:ft_irc 001
-
-	//params if any
-	for (int i = 0; i < (int)params.size(); i++) //eg ":ft_irc 004 bob ft_irc 1.0 o iklot\r\n"
-	{
-		formatted += " ";
-		formatted += params[i];
-	}
-
-	//trailing if any
-	if (!trailing.empty())
-	{
-		formatted += ": ";
-		formatted += trailing;
-	}
-	// \r\n
-	formatted += "\r\n";
-
-	return formatted;
+	return _password;
 }
