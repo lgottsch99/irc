@@ -65,11 +65,12 @@ public:
     void pollLoop();
 	void shutdown(void);
 
-	
 	void markClientToDisconnect(int client_fd);
 
     //INTERFACE  handler -> server
-    void replyToClient(Client* client, const std::string& msg);
+    void replyToClient(Client* client, const std::string& msg); //msg needs to be correclty formatted for irc
+	
+std::string& formatReply(Client* client, std::string prefix, std::string command, std::vector<std::string> &params, std::string trailing);
 
 
 };

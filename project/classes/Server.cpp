@@ -228,8 +228,16 @@ void Server::_receive_data(int fd)
 				//PASS to HANDLER
 				// CommandHandler.handle(client, cmd);
 
+
 				//testingonly
+				std::vector<std::string> params;
+				params.push_back("bob");
+				std::string trailing = "Welcome to IRC, bob";
+				
+
+
 				// replyToClient(it->second, ":ft_irc 001 bob :Welcome to IRC, bob!\r\n");
+				formatReply(it->second, _serverName, "001", params, trailing);
 				// replyToClient(it->second, ":ft_irc 002 bob :Your host is ft_irc, running version V1\r\n");
 				// replyToClient(it->second, ":ft_irc 003 bob :This server was created tpaday\r\n");
 				// replyToClient(it->second, ":ft_irc 004 bob ft_irc 1.0 o iklot\r\n");
@@ -438,6 +446,9 @@ void Server::pollLoop(void)
 
 
 /* (INTERFACE HANDLING -> SERVER)
+
+!!!!  param msg needs to be correclty formatted for IRC
+
 adds message (msg) to send to client (indicated by Client*) to outgoing send buf
 -> next poll iteration is gonna pick it up and send when ready
 */
@@ -456,3 +467,38 @@ void Server::replyToClient(Client* client, const std::string& msg)
 }
 
 
+
+
+
+/* ADD TO PARSER
+ formatter function for consistent irc conform responses from server
+*/
+std::string& Server::formatReply(Client * client, 
+						std::string prefix, 
+						std::string command, //or num reply code
+						std::vector<std::string> &params, 
+						std::string trailing)
+{
+	std::string formatted;
+
+	//prefix + command
+	formatted = ":" + prefix + " " + command; //:ft_irc 001
+
+	//params if any
+	for (int i = 0; i < (int)params.size(); i++) //eg ":ft_irc 004 bob ft_irc 1.0 o iklot\r\n"
+	{
+		formatted += " ";
+		formatted += params[i];
+	}
+
+	//trailing if any
+	if (!trailing.empty())
+	{
+		formatted += ": ";
+		formatted += trailing;
+	}
+	// \r\n
+	formatted += "\r\n";
+
+	return formatted;
+}
