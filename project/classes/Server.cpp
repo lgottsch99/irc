@@ -7,7 +7,7 @@
 bool Server::_signal = false; //-> initialize the static boolean
 
 //default
-Server::Server(): _serverSocketFd(-1)
+Server::Server(): _serverSocketFd(-1), _serverName("ft_irc")
 {
 	std::cout << "(Server) Default constructor\n";
 
@@ -78,8 +78,6 @@ void Server::_remove_single_client(int client_fd)
 */
 bool Server::_str_is_digit(std::string str)
 {
-	std::cout << "str is digit\n";
-
 	for (size_t i = 0; i < str.length(); i++)
 	{
 		if (std::isdigit(str[i]) == 0)
@@ -93,12 +91,8 @@ bool Server::_str_is_digit(std::string str)
 */
 void Server::_validate_args(char *argv[])
 {
-	std::cout << "val args\n";
-
 	std::string port = argv[1];
 	std::string pw = argv[2];
-
-	std::cout << "2\n";
 
 	//check port not empty
 	if (!port.empty())
@@ -233,8 +227,15 @@ void Server::_receive_data(int fd)
 
 				//PASS to HANDLER
 				// CommandHandler.handle(client, cmd);
+
+				//testingonly
+				// replyToClient(it->second, ":ft_irc 001 bob :Welcome to IRC, bob!\r\n");
+				// replyToClient(it->second, ":ft_irc 002 bob :Your host is ft_irc, running version V1\r\n");
+				// replyToClient(it->second, ":ft_irc 003 bob :This server was created tpaday\r\n");
+				// replyToClient(it->second, ":ft_irc 004 bob ft_irc 1.0 o iklot\r\n");
+		
 			}
-			else
+			else //TODO test
 			{
 				replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
 				markClientToDisconnect(it->first);
@@ -246,7 +247,7 @@ void Server::_receive_data(int fd)
 
 /* (SERVER INTERNAL LOGIC) 
 actual sending of clients' send buf by Server poll().
-Splits msgs longer than 512 bytes into multiple msgs.
+Splits msgs longer than 512 bytes into multiple msgs. <-TODO
 
 param: 
 		pollfd* pfd : pointer to pollfd struct for certain client
@@ -261,7 +262,7 @@ void Server::_sendMsgBuf(pollfd* pfd)
 
 	Client *c = it->second;
 
-	//TODO check max msg size/ buf size TODO
+	//TODO check max msg size/ buf size (split if too long) 		TODO
 
 	ssize_t bytes = send(pfd->fd, c->send_buf.data(), c->send_buf.length(), 0);
 	
@@ -427,7 +428,6 @@ void Server::pollLoop(void)
 			}
 			if (_pollfds[i].revents & POLLOUT) //data to SEND
 			{
-				//TODO
 				_sendMsgBuf(&_pollfds[i]);
 			}
 		}

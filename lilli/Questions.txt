@@ -6,3 +6,14 @@ if i use only nonblocking sockets, in combo with poll() how do i need to design 
 does server need to check length of incoming data? YES
 
 How do we handle msgs that are outgoing & longer than 512 bytes? Is this even going to happen?
+
+
+
+in case of server shutdown, does server need to inform clients before it closes connections?
+
+What is the msg format for replies from server? 
+
+Are we gonna store channels in server class? (i think freeing is easier if in server)
+
+add a outgoing msg formatting ft to parser?
+

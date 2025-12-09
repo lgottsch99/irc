@@ -30,6 +30,7 @@ private:
     std::string _password;
     int         _serverSocketFd;
 	static bool _signal; //-> static boolean for signal, to shutdown in clean way
+	std::string	_serverName; //server name for irc replies (always "ft_irc")
 
     std::vector<struct pollfd> _pollfds;
 

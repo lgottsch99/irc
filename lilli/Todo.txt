@@ -5,9 +5,10 @@ signals for clean shutdown (what about sigpipe?)
 nonblocking error handling
 ->what does errno == EAGAIN || errno == EWOULDBLOCK actually mean???
 
-
+max mesg len 510/512 bytes handling
 msg buffer length: check length, cannot be too long 510 bytes +clrf
 sending error checking
 
+how do we actually have to reply?
 
-                                                                     
+check ext fts all c++98
