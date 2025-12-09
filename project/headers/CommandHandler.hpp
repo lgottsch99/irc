@@ -2,7 +2,9 @@
 #define COMMANDHANDLER_HPP
 
 #include <string>
+// #include "Server.hpp"
 #include "ParsedCommand.hpp"
+#include "Client.hpp"
 
 class Server;
 class Client;
@@ -11,7 +13,9 @@ class CommandHandler {
 	private:
 		Server* _server;
 
-		void handlePass(Client* client);
+		// std::map<std::string, handlerFunc> handlers;
+
+		void handlePass(Client *client, const ParsedCommand &cmd);
 
 	public:
 		CommandHandler();

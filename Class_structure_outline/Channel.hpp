@@ -7,57 +7,55 @@
 class Client;
 
 class Channel {
-private:
-    std::string       _name;
-    std::string       _topic;
+    private:
+        std::string       _name;
+        std::string       _topic;
 
-    std::set<Client*> _users;
-    std::set<Client*> _operators;
-    std::set<Client*> _invited;
+        std::set<Client*> _users;
+        std::set<Client*> _operators;
+        std::set<Client*> _invited; // ?
 
-    // Channel modes
-    bool _mode_i;        // invite only
-    bool _mode_t;        // only ops can set topic
-    bool _mode_k;        // has key
-    bool _mode_l;        // has user limit
+        bool _mode_i;        // invite only
+        bool _mode_t;        // only ops can set topic
+        bool _mode_k;        // has key
+        bool _mode_l;        // has user limit
 
-    std::string _key;
-    size_t      _userLimit;
+        std::string _key;
+        size_t      _userLimit;
 
-public:
-    Channel(const std::string& name);
-    ~Channel();
+    public:
+        Channel();
+        Channel(const std::string& name);
+        ~Channel();
 
-    // Getters
-    const std::string& getName() const;
-    const std::string& getTopic() const;
-    const std::set<Client*>& getUsers() const;
-    const std::set<Client*>& getOperators() const;
+        const std::string& getName() const;
+        const std::string& getTopic() const;
+        const std::set<Client*>& getUsers() const;
+        const std::set<Client*>& getOperators() const;
 
-    bool isInviteOnly() const;
-    bool isTopicRestricted() const;
-    bool hasKey() const;
-    bool hasUserLimit() const;
-    const std::string& getKey() const;
-    size_t getUserLimit() const;
+        bool isInviteOnly() const;
+        bool isTopicRestricted() const;
+        bool hasKey() const;
+        bool hasUserLimit() const;
+        const std::string& getKey() const;
+        size_t getUserLimit() const;
 
-    bool isOperator(Client*) const;
-    bool hasUser(Client*) const;
-    bool isInvited(Client*) const;
+        bool isOperator(Client*) const;
+        bool hasUser(Client*) const;
+        bool isInvited(Client*) const;
 
-    // Modifiers
-    void setTopic(const std::string&);
-    void setKey(const std::string&);
-    void clearKey();
-    void setUserLimit(size_t);
-    void clearUserLimit();
-
-    void addUser(Client*);
-    void removeUser(Client*);
-    void addOperator(Client*);
-    void removeOperator(Client*);
-    void addInvite(Client*);
-    void removeInvite(Client*);
+        void setTopic(const std::string&);
+        void setKey(const std::string&);
+        void clearKey();
+        void setUserLimit(size_t);
+        void clearUserLimit();
+        
+        void addUser(Client*);
+        void removeUser(Client*);
+        void addOperator(Client*);
+        void removeOperator(Client*);
+        void addInvite(Client*);
+        void removeInvite(Client*);
 };
 
 #endif

@@ -1,8 +1,8 @@
 #ifndef PARSEDCOMMAND_HPP
-# define PARSEDCOMMAND_HPP
+#define PARSEDCOMMAND_HPP
 
-# include <string>
-# include <vector>
+#include <string>
+#include <vector>
 
 struct ParsedCommand {
     std::string              name;

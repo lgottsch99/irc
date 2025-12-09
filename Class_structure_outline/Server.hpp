@@ -5,53 +5,46 @@
 #include <string>
 #include <vector>
 #include <poll.h>
+
 #include "Client.hpp"
 #include "Channel.hpp"
 #include "CommandHandler.hpp"
 #include "CommandParser.hpp"
 
 class Server {
-private:
-    int         _port;
-    std::string _password;
-    int         _listenFd;
+    private:
+        // int                 _port;
+        std::string         _password;
+        // int                 _listenFd;
+        // std::vector<pollfd> _pollfds;
 
-    std::vector<pollfd> _pollfds;
+        std::map<int, Client*>          _clients; // fds
+        std::map<std::string, Channel*> _channels; // names
+        CommandHandler*                 _commandHandler;
+        // CommandParser                   _parser;
 
-    // int FD → Client object
-    std::map<int, Client*> _clients;
+        // void _setupSocket();
+        // void _addPollFd(int fd);
+        // void _removePollFd(int fd);
+        // pollfd* _getPollFd(int fd);
 
-    // Name → Channel object
-    std::map<std::string, Channel*> _channels;
+    public:
+        Server();
+        ~Server();
 
-    CommandHandler* _commandHandler;
-    CommandParser    _parser;
+        // void start(int port, const std::string& pass);
+        // void pollLoop();
+        // void acceptNewClient();
+        // void receiveData(int fd);
 
-    void _setupSocket();
-    void _addPollFd(int fd);
-    void _removePollFd(int fd);
-    pollfd* _getPollFd(int fd);
+        std::map<int, Client*>& getClients();
+        // function add a client?
+        std::map<std::string, Channel*>& getChannels();
 
+        void disconnectClient(Client* client);
+        void removeChannel(const std::string& name);
 
-public:
-    Server();
-    ~Server();
-
-    void start(int port, const std::string& pass);
-    void pollLoop();
-
-    void acceptNewClient();
-    void receiveData(int fd);
-
-    // called by handler to server
-    void sendResponse(int fd, const std::string& msg); //INTERFACE from handler to server
-
-    // Accessors for handler
-    std::map<int, Client*>& getClients();
-    std::map<std::string, Channel*>& getChannels();
-	void	disconnectClient(Client* client);
-	void	removeChannel(const std::string& name);
-
+        void sendResponse(int fd, const std::string& msg);
 };
 
 #endif
