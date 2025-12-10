@@ -7,10 +7,9 @@ int main() // main for testing the command handler
 	int fd = 7;
 	std::string ip = "0.0.0.0";
 	
-	CommandHandler handler; // so what is the pointer to the cmdhandler in the server class then for ?
+	CommandHandler handler;
 	Client client(fd, ip);
 
-	// examples:
 	// PASS blapassword
 	ParsedCommand cmd;
 	cmd.name = "PASS";
