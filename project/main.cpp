@@ -1,44 +1,41 @@
 #include "headers/Client.hpp"
 #include "headers/CommandHandler.hpp"
-#include <iostream>
 
 int main() // main for testing the command handler
 {
-	int fd = 7;
-	std::string ip = "0.0.0.0";
-	
-	CommandHandler handler;
-	Client client(fd, ip);
+	Client *client = new Client;
+	Client *client2 = new Client;
+	Server server;
+
+	server.setPass("password");
+	std::cout << "Password: " << server.getPassword() << std::endl;
+	server.Clients.insert(std::make_pair(10, client));
+	server.Clients.insert(std::make_pair(11, client2));
 
 	// PASS blapassword
 	ParsedCommand cmd;
 	cmd.name = "PASS";
-	cmd.args.push_back("blapassword");
-	handler.handleCmd(&client, cmd);
-	std::cout << "Authenticated yay or nay? " << client.isAuthenticated() << "\n";
+	cmd.args.push_back("password");
 
-	// // NICK Yeva
-	// cmd.name = "NICK";
-	// cmd.args = {"Yeva"};
-	// handler.handleCmd(&client, cmd);
-	// std::cout << "Nickname: " << client.getNickname() << "\n";
+	CommandHandler::handleCmd(&server, client, cmd);
+	std::cout << "Authenticated yay or nay? " << client->isAuthenticated() << "\n";
+
+	// NICK Yeva
+	cmd.name = "NICK";
+	cmd.args.clear();
+	cmd.args.push_back("Yeva");
+	CommandHandler::handleCmd(&server, client, cmd);
+	std::cout << "Nickname: " << client->getNickname() << "\n";
+	CommandHandler::handleCmd(&server, client2, cmd);
+	std::cout << "Nickname: " << client2->getNickname() << "\n";
 
 	// // USER yevauser 0.0.0.0 ircserver :Yeva Real
 	// cmd.name = "USER";
 	// cmd.args = {"yevauser", "0.0.0.0", "ircserver", "Yeva for real"};
-	// handler.handleCmd(&client, cmd);
+	// CommandHandler::handleCmd(&client, cmd);
 	// std::cout << "Username: " << client.getUsername() << "\n";
 	// std::cout << "Realname: " << client.getRealname() << "\n";
 	// std::cout << "Registered? " << client.isRegistered() << "\n";
-	Server irc_server;
-	
-	try
-	{	
-		std::cout << "init server\n";
-		irc_server.init(argv);
-		irc_server.pollLoop();
-
-	return 0;
 }
 
 // int main(int argc, char *argv[])
@@ -53,13 +50,11 @@ int main() // main for testing the command handler
 
 // 	try
 // 	{
-// 		std::cout <<"starting server\n";
-// 		irc_server.start(argv);
-// 		std::cout <<"starting polling\n";
-// 		irc_server.pollLoop(); //can be put into startup() ft later
-
+// 		std::cout << "init server\n";
+// 		irc_server.init(argv);
+// 		irc_server.pollLoop();
 // 	}
-// 	catch(const std::exception& e)
+// 	catch (const std::exception &e)
 // 	{
 // 		std::cerr << e.what() << '\n';
 // 		irc_server.shutdown();

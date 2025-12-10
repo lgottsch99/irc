@@ -1,66 +1,71 @@
 #include "../headers/Client.hpp"
 
+// ---------------- (Trend)Setters ----------------
+
 void Client::setNickname(const std::string &name)
 {
-    _nickname = name;
+	_nickname = name;
 }
 
 void Client::setUsername(const std::string &name)
 {
-    _username = name;
+	_username = name;
 }
 
 void Client::setRealname(const std::string &name)
 {
-    _realname = name;
-}
-
-bool Client::isAuthenticated() const
-{
-    return _authenticated;
-}
-
-bool Client::isRegistered() const
-{
-    return _registered;
+	_realname = name;
 }
 
 void Client::setAuthenticated(bool v)
 {
-    _authenticated = v;
+	_authenticated = v;
 }
 
 void Client::setRegistered(bool v)
 {
-    _registered = v;
+	_registered = v;
 }
 
-Client::Client(int fd, const std::string &ip) : _fd(fd), _ip(ip),
-                                                _authenticated(false), _registered(false), _nickname(""), _username(""), _realname("")
+// ---------------- Getters ----------------
+
+std::string Client::getNickname(void) const
 {
-    (void)_fd;
-    (void)_ip;
+	return _nickname;
 }
 
-Client::~Client()
+bool Client::isAuthenticated(void) const
 {
-// ------------ Constructors -----------------------------
-//default
-Client::Client()
+	return _authenticated;
+}
+
+bool Client::isRegistered(void) const
+{
+	return _registered;
+}
+
+// ---------------- Constructors ----------------
+
+Client::Client(void)
+	: _authenticated(false), _registered(false),
+	  _nickname(""), _username(""), _realname("")
 {
 	std::cout << "(Client) Default constructor\n";
-
 }
 
-//destructor
-Client::~Client()
+// Client::Client(int fd, const std::string &ip)
+// 	: _authenticated(false), _registered(false),
+// 	  _nickname(""), _username(""), _realname("")
+// {
+// 	std::cout << "(Client) Overload constructor\n";
+// }
+
+Client::~Client(void)
 {
 	std::cout << "(Client) Destructor\n";
 }
 
-
-
-// ------------ Member FTs -----------------------------
+// ---------------- Member FTs ----------------
 
 /* checks if recv_buffer includes a full irc command line.
 If yes: returns that single line (without \r\n) and removes it (incl \r\n) from recv buffer
@@ -70,7 +75,7 @@ Returns:
 */
 std::string Client::extract_line(void)
 {
-	std::string del = "\r\n"; //irc protocol
+	std::string del = "\r\n"; // irc protocol
 	std::string line = "";
 
 	size_t del_pos = recv_buf.find(del);
@@ -81,11 +86,11 @@ std::string Client::extract_line(void)
 	// else
 	if (del_pos != std::string::npos)
 	{
-		//get line up to del
+		// get line up to del
 		line = recv_buf.substr(0, del_pos);
 		// std::cout << "Single line: " << line << std::endl;
-		
-		//update buf
+
+		// update buf
 		recv_buf.erase(0, del_pos + 2);
 		// std::cout << "Remaining buf:\n" << recv_buf << std::endl;
 	}

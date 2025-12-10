@@ -4,11 +4,9 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
 CLASSFILES =	classes/Client.cpp \
 				classes/CommandHandler.cpp \
+				classes/Server.cpp \
 # 				classes/Channel.cpp \
 				classes/CommandParser.cpp \
-				classes/Server.cpp \
-CLASSFILES = classes/Server.cpp classes/Client.cpp
-
 
 SRC = main.cpp $(CLASSFILES)
 

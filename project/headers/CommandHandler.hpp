@@ -2,29 +2,30 @@
 #define COMMANDHANDLER_HPP
 
 #include <string>
-// #include "Server.hpp"
+#include "Server.hpp"
 #include "ParsedCommand.hpp"
 #include "Client.hpp"
 
-class Server;
-class Client;
+// class Server;
+// class Client;
 
 class CommandHandler {
 	private:
-		Server* _server;
+		typedef void (*handlerFunc)(Server* server, Client *client, const ParsedCommand &cmd);
 
-		// std::map<std::string, handlerFunc> handlers;
+		static std::map<std::string, handlerFunc> _handlers;
 
-		void handlePass(Client *client, const ParsedCommand &cmd);
-		void handleNick(Client *client, const ParsedCommand &cmd);
-		void handleUser(Client *client, const ParsedCommand &cmd);
+		static void _handlePass(Server* server, Client *client, const ParsedCommand &cmd);
+		static void _handleNick(Server* server, Client *client, const ParsedCommand &cmd);
+		static void _handleUser(Server* server, Client *client, const ParsedCommand &cmd);
+
+		static bool _isNameDublicate(Server *server, std::string name);
 
 	public:
-		CommandHandler();
-		CommandHandler(Server* server);
-		~CommandHandler();
+		CommandHandler(void);
+		~CommandHandler(void);
 
-		void handleCmd(Client* client, const ParsedCommand& cmd); // client* here is the client that sent the command
+		static void handleCmd(Server* server, Client* client, const ParsedCommand& cmd); // client* here is the client that sent the command
 		
 		// void sendToChannel(const std::string& channelName, const std::string& msg, Client* exceptClient);
 

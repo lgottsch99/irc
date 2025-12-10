@@ -1,6 +1,8 @@
 #include "../headers/CommandHandler.hpp"
 #include <iostream>
 
+std::map<std::string, CommandHandler::handlerFunc> CommandHandler::_handlers;
+
 /*
 4.1.1 Password message
     Command: PASS
@@ -23,11 +25,21 @@
     Example:
            PASS secretpasswordhere
 */
-void CommandHandler::handlePass(Client *client, const ParsedCommand &cmd)
+void CommandHandler::_handlePass(Server *server, Client *client, const ParsedCommand &cmd)
 {
-    std::string password = "password"; // server->getPassword()?
-    if (!cmd.args[0].compare(password))
+    if (!cmd.args[0].compare(server->getPassword()))
         client->setAuthenticated(true);
+}
+
+// Util to check whether a client with the same name already exists
+bool CommandHandler::_isNameDublicate(Server *server, std::string name)
+{
+    for (std::map<int, Client *>::iterator it = server->Clients.begin(); it != server->Clients.end(); ++it)
+    {
+        if (it->second && !it->second->getNickname().compare(name))
+            return true;
+    }
+    return false;
 }
 
 /*
@@ -47,16 +59,15 @@ void CommandHandler::handlePass(Client *client, const ParsedCommand &cmd)
         NICK Wiz                        ; Introducing new nick "Wiz".
         :WiZ NICK Kilroy                ; WiZ changed his nickname to Kilroy.
 */
-Client *searchClient(Server *server){
-    
-    return ;
-}
-
-void CommandHandler::handleNick(Client *client, const ParsedCommand &cmd)
+void CommandHandler::_handleNick(Server *server, Client *client, const ParsedCommand &cmd)
 {
-    // how the fuck?
+    if (_isNameDublicate(server, cmd.args[0]))
+    {
+        std::cout << "ERROR: found a client with the same nick" << std::endl; // should be ERR_NICKNAMEINUSE
+        return;
+    }
+    std::cout << "Did not find any name twins" << std::endl; // should be ERR_NICKNAMEINUSE
     client->setNickname(cmd.args[0]);
-    // look up existing nicknames - iterate through all clients through the server? 
 }
 
 /*
@@ -93,7 +104,7 @@ void CommandHandler::handleNick(Client *client, const ParsedCommand &cmd)
             ERR_NEEDMOREPARAMS              ERR_ALREADYREGISTRED
 
     Examples:
-        USER guest tolmoon tolsun :Ronnie Reagan 
+        USER guest tolmoon tolsun :Ronnie Reagan
                                     ; User registering themselves with a
                                     username of "guest" and real name
                                     "Ronnie Reagan".
@@ -103,20 +114,34 @@ void CommandHandler::handleNick(Client *client, const ParsedCommand &cmd)
                                     nickname for which the USER command
                                     belongs to
 */
-void CommandHandler::handleUser(Client *client, const ParsedCommand &cmd)
+void CommandHandler::_handleUser(Server *server, Client *client, const ParsedCommand &cmd)
 {
+    (void)client;
+    (void)cmd;
+    (void)server;
 }
 
-void CommandHandler::handleCmd(Client *client, const ParsedCommand &cmd)
+void CommandHandler::handleCmd(Server* server, Client *client, const ParsedCommand &cmd)
 {
-    if (!cmd.name.compare("PASS"))
-        handlePass(client, cmd);
-    else if (!cmd.name.compare("NICK"))
-        handleNick(client, cmd);
-    else if (!cmd.name.compare("USER"))
-        handleUser(client, cmd);
+    std::cout << "\n--Passed params in the handler--\nName: " << cmd.name << std::endl;
+    for (size_t i = 0; i < cmd.args.size(); i++) {
+        std::cout << "Args: " << cmd.args[i] << std::endl;
+    }
 
-    // will use an interator and find later instead of if-else statements
+    CommandHandler::_handlers["PASS"] = &_handlePass; // not sure if it should be in this function or outside, later
+    CommandHandler::_handlers["NICK"] = &_handleNick;
+    CommandHandler::_handlers["USER"] = &_handleUser;
+
+    std::map<std::string, handlerFunc>::iterator it = _handlers.find(cmd.name); // instead of daunting if else if else if else
+
+    if (it == _handlers.end()) {
+        std::cout << "Unknown command" << std::endl; // use send response with a formatted message
+    }
+
+    it->second(server, client, cmd); // execute the handler function
+
+    // correctlyFormattedMessage = formatMsg(someMessage);
+    // server->replyToClient(client, correctlyFormattedMessage);
 }
 
 // void CommandHandler::sendToChannel(const std::string &channelName, const std::string &msg, Client *exceptClient)
@@ -125,15 +150,14 @@ void CommandHandler::handleCmd(Client *client, const ParsedCommand &cmd)
 
 // void sendToClient(int fd, const std::string& msg);
 
-CommandHandler::CommandHandler() : _server(NULL)
+// ---------------- Constructors ----------------
+
+CommandHandler::CommandHandler(void)
 {
+    std::cout << "(CommandHandler) Default constructor\n";
 }
 
-CommandHandler::CommandHandler(Server *server) : _server(server)
+CommandHandler::~CommandHandler(void)
 {
-    // initialise the map
-}
-
-CommandHandler::~CommandHandler()
-{
+    std::cout << "(CommandHandler) Destructor\n";
 }

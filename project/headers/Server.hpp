@@ -17,10 +17,8 @@
 #include <fcntl.h>
 #include <cerrno>
 
-
 #include "Client.hpp"
 //todo incl handling headers
-
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?
 
@@ -68,9 +66,8 @@ public:
     //INTERFACE  handler -> server for sending msg
     void replyToClient(Client* client, const std::string& msg); //msg needs to be correclty formatted for irc
 	
-	std::string getPassword(void);
-
-
+	std::string getPassword(void) const;
+	void setPass(std::string pass); // for testing, remove later
 };
 
 #endif
