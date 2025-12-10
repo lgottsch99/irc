@@ -30,6 +30,13 @@ int main() // main for testing the command handler
 	// std::cout << "Username: " << client.getUsername() << "\n";
 	// std::cout << "Realname: " << client.getRealname() << "\n";
 	// std::cout << "Registered? " << client.isRegistered() << "\n";
+	Server irc_server;
+	
+	try
+	{	
+		std::cout << "init server\n";
+		irc_server.init(argv);
+		irc_server.pollLoop();
 
 	return 0;
 }
