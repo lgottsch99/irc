@@ -4,6 +4,10 @@
 #include <vector>
 #include <string>
 
+// the client never sends a prefix in a message, the prefix is only for server->client communication
+// TODO: create a function to generating a valid server->client message in pseudo BNF (Backus–Naur Form)
+// example:
+// message    =  [ ":" prefix " " ] command [ params ] crlf
 
 struct IrcMessage
 {
@@ -20,8 +24,14 @@ class Parser
     Parser& operator=(const Parser&);
     // members
     static void handleTrailing(IrcMessage&, std::string&);
+    static void handleRest(IrcMessage&, std::string&);
+    static void normalizeCMD(std::string& cmd);
+
+
     public:
     static IrcMessage parseLine(const std::string& input);
 };
+
+void printIrcMessage(IrcMessage& message);
 
 #endif

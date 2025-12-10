@@ -8,7 +8,7 @@ CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -MMD -MP -Iheaders
 # ----------------------------------------------------------
 
 CLASSFILES = \
-	classes/Server.cpp \
+	classes/Parser.cpp \
 
 
 SRC = main.cpp $(CLASSFILES)
