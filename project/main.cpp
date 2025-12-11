@@ -1,5 +1,6 @@
 #include "headers/Client.hpp"
 #include "headers/CommandHandler.hpp"
+#include "headers/Parser.hpp"
 
 int main() // main for testing the command handler
 {
@@ -56,9 +57,10 @@ int main() // main for testing the command handler
 // 		irc_server.pollLoop();
 // 	}
 // 	catch (const std::exception &e)
-// 	{
-// 		std::cerr << e.what() << '\n';
-// 		irc_server.shutdown();
-// 	}
-// 	return 0;
+
+// int main()
+// {
+// 	IrcMessage message;
+// 	message = Parser::parseLine("AAaf :Hello ");
+// 	printIrcMessage(message);
 // }
