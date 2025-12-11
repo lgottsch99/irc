@@ -22,9 +22,9 @@ std::map<std::string, CommandHandler::handlerFunc> CommandHandler::_handlers;
     Example:
            PASS secretpasswordhere
 */
-void CommandHandler::_handlePass(Server *server, Client *client, const ParsedCommand &cmd)
+void CommandHandler::_handlePass(Server *server, Client *client, const IrcMessage &cmd)
 {
-    if (cmd.args.empty())
+    if (cmd.params.empty())
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
     }
@@ -32,10 +32,14 @@ void CommandHandler::_handlePass(Server *server, Client *client, const ParsedCom
     {
         std::cout << "ERR_ALREADYREGISTRED" << std::endl;
     }
+    else if (!cmd.params[0].compare(server->getPassword()))
+    {
+        client->setAuthenticated(true);
+        std::cout << "Authorised successfully with the password from client: " << cmd.params[0] << std::endl;
+    }
     else
     {
-        if (!cmd.args[0].compare(server->getPassword()))
-            client->setAuthenticated(true);
+        std::cout << "Wrong password." << std::endl;
     }
 }
 
@@ -54,9 +58,7 @@ bool CommandHandler::_isNameDublicate(Server *server, std::string name, bool (*c
 {
     for (std::map<int, Client *>::iterator it = server->Clients.begin(); it != server->Clients.end(); ++it)
     {
-        // if (it->second && !it->second->getNickname().compare(name))
-        //     return true;
-        if (it->second && compareFunc(it->second, name))
+        if (it->second && it->second->isRegistered() && compareFunc(it->second, name))
             return true;
     }
     return false;
@@ -78,10 +80,10 @@ bool CommandHandler::_isNameDublicate(Server *server, std::string name, bool (*c
     Examples:
         NICK Wiz                        ; Introducing new nick "Wiz".
 */
-void CommandHandler::_handleNick(Server *server, Client *client, const ParsedCommand &cmd)
+void CommandHandler::_handleNick(Server *server, Client *client, const IrcMessage &cmd)
 {
-    if (cmd.args.empty()) // should i check for too many params? or just ignore the rest of the params and take into account only the first one
-    {                     // and what about the trailing?
+    if (cmd.params.empty()) // should i check for too many params? or just ignore the rest of the params and take into account only the first one
+    {                       // and what about the trailing?
         std::cout << "ERR_NONICKNAMEGIVEN" << std::endl;
     }
     // else if () // check for whitespaces and special characters - should not be present
@@ -92,13 +94,14 @@ void CommandHandler::_handleNick(Server *server, Client *client, const ParsedCom
     {
         std::cout << "Client is not authorised. password first." << std::endl; // theres no error for that in the protocol?
     }
-    else if (_isNameDublicate(server, cmd.args[0], &_compareNick))
+    else if (_isNameDublicate(server, cmd.params[0], &_compareNick))
     {
         std::cout << "ERR_NICKNAMEINUSE" << std::endl;
     }
     else
     {
-        client->setNickname(cmd.args[0]);
+        client->setNickname(cmd.params[0]);
+        std::cout << "Set the nickname successfully: " << client->getNickname() << std::endl;
     }
 }
 
@@ -125,44 +128,72 @@ void CommandHandler::_handleNick(Server *server, Client *client, const ParsedCom
                                     username of "guest" and real name
                                     "Ronnie Reagan".
 */
-void CommandHandler::_handleUser(Server *server, Client *client, const ParsedCommand &cmd)
+void CommandHandler::_handleUser(Server *server, Client *client, const IrcMessage &cmd) // while the NICK command is allowed to change the nickname, can the client change the usernmae and real name?
 {
-    if (cmd.args.empty())
+    if (cmd.params.empty() || cmd.trailing.empty()) // it didnt work with empty realname
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
     }
-    else if (_isNameDublicate(server, cmd.args[0], &_compareUser))
+    else if (_isNameDublicate(server, cmd.params[0], &_compareUser))
     {
         std::cout << "ERR_ALREADYREGISTRED" << std::endl;
     }
     else
     {
-        client->setUsername(cmd.args[0]);
-        client->setRealname(cmd.args[1]);
+        client->setUsername(cmd.params[0]);
+        client->setRealname(cmd.trailing);
         client->setRegistered(true);
+        std::cout << "Set the username and registered the client successfully: " << client->getUsername() << " and " << client->getRealname() << std::endl;
     }
 }
 
-void CommandHandler::handleCmd(Server *server, Client *client, const ParsedCommand &cmd)
-{
-    std::cout << "\n--Passed params in the handler--\nName: " << cmd.name << std::endl;
-    for (size_t i = 0; i < cmd.args.size(); i++)
-    {
-        std::cout << "Args: " << cmd.args[i] << std::endl;
-    }
+/*
+4.1.6 Quit
 
+        Command: QUIT
+    Parameters: [<Quit message>]
+
+    A client session is ended with a quit message.  The server must close
+    the connection to a client which sends a QUIT message. If a "Quit
+    Message" is given, this will be sent instead of the default message,
+    the nickname.
+
+    If, for some other reason, a client connection is closed without  the
+    client  issuing  a  QUIT  command  (e.g.  client  dies and EOF occurs
+    on socket), the server is required to fill in the quit  message  with
+    some sort  of  message  reflecting the nature of the event which
+    caused it to happen.
+
+    Examples:
+        QUIT :Gone to have lunch        ; Preferred message format.
+*/
+void CommandHandler::_handleQuit(Server *server, Client *client, const IrcMessage &cmd) // should i check for params?
+{
+    if (!cmd.trailing.empty())
+    {
+        std::cout << "Client sent a message: " << cmd.trailing << std::endl;
+    }
+    server->markClientToDisconnect(client->fd);
+}
+
+void CommandHandler::handleCmd(Server *server, Client *client, const IrcMessage &cmd)
+{
     CommandHandler::_handlers["PASS"] = &_handlePass;
     CommandHandler::_handlers["NICK"] = &_handleNick;
     CommandHandler::_handlers["USER"] = &_handleUser;
+    CommandHandler::_handlers["QUIT"] = &_handleQuit;
 
-    std::map<std::string, handlerFunc>::iterator it = _handlers.find(cmd.name);
+    std::map<std::string, handlerFunc>::iterator it = _handlers.find(cmd.command);
 
     if (it == _handlers.end())
     {
-        std::cout << "Unknown command" << std::endl; // use send response with a formatted message
+        std::cout << "Unknown command" << std::endl; // format the message
     }
-
-    it->second(server, client, cmd); // execute the handler function
+    else
+    {
+        std::cout << "Command recognised and going to the execution." << std::endl;
+        it->second(server, client, cmd); // executes the handler function
+    }
 
     // correctlyFormattedMessage = formatMsg(someMessage);
     // server->replyToClient(client, correctlyFormattedMessage);

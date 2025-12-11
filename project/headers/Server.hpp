@@ -18,6 +18,8 @@
 #include <cerrno>
 
 #include "Client.hpp"
+#include "Parser.hpp"
+#include "CommandHandler.hpp"
 //todo incl handling headers
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?

@@ -1,5 +1,5 @@
-#ifndef PARSERHPP
-#define PARSERHPP
+#ifndef PARSER_HPP
+#define PARSER_HPP
 
 #include <vector>
 #include <string>
@@ -9,27 +9,25 @@
 // example:
 // message    =  [ ":" prefix " " ] command [ params ] crlf
 
-struct IrcMessage
-{
+struct IrcMessage {
     std::string command;
     std::vector<std::string> params;
     std::string trailing;      // empty if none
 };
 
-class Parser
-{
+class Parser {
     private:
-    Parser();
-    Parser(const Parser&);
-    Parser& operator=(const Parser&);
-    // members
-    static void handleTrailing(IrcMessage&, std::string&);
-    static void handleRest(IrcMessage&, std::string&);
-    static void normalizeCMD(std::string& cmd);
-
+        Parser();
+        Parser(const Parser&);
+        Parser& operator=(const Parser&);
+        
+        // members
+        static void handleTrailing(IrcMessage&, std::string&);
+        static void handleRest(IrcMessage&, std::string&);
+        static void normalizeCMD(std::string& cmd);
 
     public:
-    static IrcMessage parseLine(const std::string& input);
+        static IrcMessage parseLine(const std::string& input);
 };
 
 void printIrcMessage(IrcMessage& message);
