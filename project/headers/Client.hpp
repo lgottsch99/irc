@@ -20,17 +20,11 @@ class Client {
 
     public:
         Client(void);
-        // Client(int fd, const std::string &ip);
         ~Client(void);
 
-        // int getFd() const;
-        // const std::string&  getIP() const;
         std::string  getNickname(void) const;
-        // const std::string&  getUsername() const;
-        // const std::string&  getRealname() const;
-        // const std::string& getRecvBuffer() const;
-        // const std::string& getSendBuffer() const;
-        // const std::set<Channel*>& getChannels() const;
+        std::string  getUsername(void) const;
+        std::string  getRealname(void) const;
 
         bool isAuthenticated(void) const;
         bool isRegistered(void) const;

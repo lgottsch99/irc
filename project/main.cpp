@@ -29,13 +29,14 @@ int main() // main for testing the command handler
 	CommandHandler::handleCmd(&server, client2, cmd);
 	std::cout << "Nickname: " << client2->getNickname() << "\n";
 
-	// // USER yevauser 0.0.0.0 ircserver :Yeva Real
-	// cmd.name = "USER";
-	// cmd.args = {"yevauser", "0.0.0.0", "ircserver", "Yeva for real"};
-	// CommandHandler::handleCmd(&client, cmd);
-	// std::cout << "Username: " << client.getUsername() << "\n";
-	// std::cout << "Realname: " << client.getRealname() << "\n";
-	// std::cout << "Registered? " << client.isRegistered() << "\n";
+	// USER yevauser 0.0.0.0 ircserver :Yeva Real
+	cmd.name = "USER";
+	cmd.args.push_back("yevauser");
+	cmd.args.push_back("Yeva for real");
+	CommandHandler::handleCmd(&server, client, cmd);
+	std::cout << "Username: " << client->getUsername() << "\n";
+	std::cout << "Realname: " << client->getRealname() << "\n";
+	std::cout << "Registered? " << client->isRegistered() << "\n";
 }
 
 // int main(int argc, char *argv[])

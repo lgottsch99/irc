@@ -34,6 +34,16 @@ std::string Client::getNickname(void) const
 	return _nickname;
 }
 
+std::string Client::getUsername(void) const
+{
+	return _username;
+}
+
+std::string Client::getRealname(void) const
+{
+	return _realname;
+}
+
 bool Client::isAuthenticated(void) const
 {
 	return _authenticated;
@@ -52,13 +62,6 @@ Client::Client(void)
 {
 	std::cout << "(Client) Default constructor\n";
 }
-
-// Client::Client(int fd, const std::string &ip)
-// 	: _authenticated(false), _registered(false),
-// 	  _nickname(""), _username(""), _realname("")
-// {
-// 	std::cout << "(Client) Overload constructor\n";
-// }
 
 Client::~Client(void)
 {
