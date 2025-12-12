@@ -232,7 +232,7 @@ bool CommandHandler::_checkNickChars(const std::string &name)
             return true;
     }
     // the nick should not be longer than NICK_MAX
-    if (name.length() > 30)
+    if (name.length() > NICK_MAX)
         return true;
     return false;      
 }
