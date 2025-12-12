@@ -86,10 +86,10 @@ void CommandHandler::_handleNick(Server *server, Client *client, const IrcMessag
     {                       // and what about the trailing?
         std::cout << "ERR_NONICKNAMEGIVEN" << std::endl;
     }
-    // else if () // check for whitespaces and special characters - should not be present
-    // {
-    //     std::cout << "ERR_ERRONEUSNICKNAME" << std::endl;
-    // }
+    else if (_checkNickChars(cmd.params[0])) // check for whitespaces and special characters - should not be present
+    {
+        std::cout << "ERR_ERRONEUSNICKNAME" << std::endl;
+    }
     else if (!client->isAuthenticated())
     {
         std::cout << "Client is not authorised. password first." << std::endl; // theres no error for that in the protocol?
@@ -215,4 +215,24 @@ CommandHandler::CommandHandler(void)
 CommandHandler::~CommandHandler(void)
 {
     std::cout << "(CommandHandler) Destructor\n";
+}
+
+
+bool CommandHandler::_checkNickChars(const std::string &name)
+{
+    // the nick should not start with digits or hyphens or a slash
+    if (isdigit(static_cast<unsigned char>(name[0])) ||
+    name[0] == '-' || name[0] == '/')
+        return true;
+    // allowed chars: A-Z, a-z, 0-9, [ ] \ ^ _ { | } -
+    std::string specialChars = "[]\\^_{|}-";
+    for (int i = 0; name[i]; i++)
+    {
+        if (!(isalnum(name[i]) || specialChars.find(name[i]) != name.npos) || isspace(name[i]))
+            return true;
+    }
+    // the nick should not be longer than NICK_MAX
+    if (name.length() > 30)
+        return true;
+    return false;      
 }
