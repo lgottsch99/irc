@@ -285,7 +285,7 @@ void Server::_sendMsgBuf(pollfd *pfd)
     -> closes all existing socket connections
     ->clears ALL Clients & data
 */
-void Server::shutdown(void)
+void Server::shutdown(void) // + delete channels
 {
     // TODO
     // close existing connections?
@@ -458,4 +458,28 @@ std::string Server::getPassword(void) const
 void Server::setPass(std::string pass)
 {
     _password = pass;
+}
+
+// CHANNEL OPERATIONS
+
+void Server::createChannel(const std::string &name)
+{
+    Channel *channel = new Channel(name);
+    Channels.insert(std::make_pair(name, channel));
+    std::cout << "Created a channel: " << name << std::endl;
+}
+
+void Server::removeChannel(const std::string &name)
+{
+    std::map<std::string, Channel *>::iterator it = Channels.find(name);
+    delete it->second;
+    Channels.erase(it);
+}
+
+Channel *Server::getChannel(const std::string &name)
+{
+    std::map<std::string, Channel *>::iterator it = Channels.find(name);
+    if (it == Channels.end())
+        return NULL;
+    return it->second;
 }

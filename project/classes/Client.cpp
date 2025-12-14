@@ -54,6 +54,23 @@ bool Client::isRegistered(void) const
 	return _registered;
 }
 
+bool Client::hasChannel(Channel *channel) const
+{
+	if (_channels.find(channel) != _channels.end())
+		return true;
+	return false;
+}
+
+void Client::addToChannel(Channel *channel)
+{
+	_channels.insert(channel);
+}
+
+void Client::leaveChannel(Channel *channel)
+{
+	_channels.erase(channel);
+}
+
 // ---------------- Constructors ----------------
 
 Client::Client(void)

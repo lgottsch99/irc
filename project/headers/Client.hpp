@@ -3,9 +3,11 @@
 
 #include <iostream>
 #include <string>
-// #include <set>
+#include <set>
 
-// class Channel;
+// #include "Channel.hpp"
+
+class Channel;
 
 class Client {
     private:
@@ -16,7 +18,7 @@ class Client {
         std::string _username;
         std::string _realname;
 
-        // std::set<Channel*> _channels; // Channels the client has joined
+        std::set<Channel*> _channels; // Channels the client has joined
 
     public:
         Client(void);
@@ -28,6 +30,10 @@ class Client {
 
         bool isAuthenticated(void) const;
         bool isRegistered(void) const;
+        
+	    bool hasChannel(Channel*) const;
+        void addToChannel(Channel*);
+        void leaveChannel(Channel*);
 
         void setNickname(const std::string &);
         void setUsername(const std::string &);
@@ -39,8 +45,6 @@ class Client {
         // void appendToSendBuffer(const std::string&);
         // void clearRecvBuffer();
         // void clearSendBuffer();
-        // void addChannel(Channel*);
-        // void removeChannel(Channel*);
 
         // for Lilli
         int fd;                 // client socket fd. needed by server
