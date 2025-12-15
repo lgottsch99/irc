@@ -3,6 +3,7 @@
 
 #include <string>
 #include "Server.hpp"
+#define NICK_MAX 30
 
 #define DISABLE 0
 #define ENABLE 1
@@ -43,6 +44,7 @@ class CommandHandler {
 
 		static bool _isNameDublicate(Server *server, std::string name, bool (*compareFunc)(Client*, const std::string&));
 		static bool _compareNick(Client *client, const std::string &name);
+		static bool _checkNickChars(const std::string &name);
 		static bool _compareUser(Client *client, const std::string &name);
 		// static void	_handleModesUtil(const std::vector<std::string> &params, Channel *channel);
 
