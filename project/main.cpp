@@ -3,11 +3,13 @@
 #include "headers/Server.hpp"
 #include <iostream>
 
+// ==================== HELPER FUNCTIONS ====================
+
 void printSeparator(const std::string &testName)
 {
-	std::cout << "\n========================================\n";
+	std::cout << "\n" << std::string(50, '=') << "\n";
 	std::cout << "TEST: " << testName << "\n";
-	std::cout << "========================================\n";
+	std::cout << std::string(50, '=') << "\n";
 }
 
 void printChannels(Server &server)
@@ -73,7 +75,7 @@ void printChannelMemberships(Server &server)
 			}
 			if (first)
 				std::cout << "(no users)";
-			std::cout << "\n    (operators not listed; API missing)\n";
+			std::cout << "\n    (operators not listed)\n";
 		}
 	}
 	std::cout << "--- END CHANNEL MEMBERSHIP ---\n";
@@ -107,300 +109,366 @@ int main()
 	std::cout << "║   IRC COMMAND HANDLER - TEST SUITE     ║\n";
 	std::cout << "╚════════════════════════════════════════╝\n";
 
-	// Setup
+	// ==================== SETUP ====================
 	Server server;
-	server.setPass("secretpass");
-	std::cout << "\n[SETUP] Server password set to: " << server.getPassword() << "\n";
+	server.setPass("testpass");
 
+	// Create test clients
 	Client *alice = new Client();
 	Client *bob = new Client();
 	Client *charlie = new Client();
+	Client *dave = new Client();
 
 	alice->fd = 10;
 	bob->fd = 11;
 	charlie->fd = 12;
+	dave->fd = 13;
 
-	server.Clients.insert(std::make_pair(alice->fd, alice));
-	server.Clients.insert(std::make_pair(bob->fd, bob));
-	server.Clients.insert(std::make_pair(charlie->fd, charlie));
+	server.Clients[alice->fd] = alice;
+	server.Clients[bob->fd] = bob;
+	server.Clients[charlie->fd] = charlie;
+	server.Clients[dave->fd] = dave;
 
-	// std::cout << "[SETUP] Created 3 clients: Alice (fd=10), Bob (fd=11), Charlie (fd=12)\n";
-	// printClients(server);
+	// Pre-register all clients for channel tests
+	alice->setAuthenticated(true);
+	alice->setNickname("Alice");
+	alice->setUsername("alice_user");
+	alice->setRealname("Alice Wonderland");
+	alice->setRegistered(true);
+
+	bob->setAuthenticated(true);
+	bob->setNickname("Bob");
+	bob->setUsername("bob_user");
+	bob->setRealname("Bob The Builder");
+	bob->setRegistered(true);
+
+	charlie->setAuthenticated(true);
+	charlie->setNickname("Charlie");
+	charlie->setUsername("charlie_user");
+	charlie->setRealname("Charlie Brown");
+	charlie->setRegistered(true);
+
+	dave->setAuthenticated(true);
+	dave->setNickname("Dave");
+	dave->setUsername("dave_user");
+	dave->setRealname("Dave Grohl");
+	dave->setRegistered(true);
 
 	IrcMessage cmd;
 
-	// // =============== TEST PASS COMMAND ===============
-	// printSeparator("PASS - Correct Password");
-	cmd.command = "PASS";
-	cmd.params.clear();
-	cmd.params.push_back("secretpass");
-	cmd.trailing = "";
-	
-	// std::cout << "[CMD] PASS secretpass\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-	// std::cout << "[RESULT] Alice authenticated: " << alice->isAuthenticated() << "\n";
+	// ==================== JOIN TESTS ====================
 
-	// printSeparator("PASS - Wrong Password");
+	// printSeparator("JOIN - Create new channel #general");
+	// cmd.command = "JOIN";
 	// cmd.params.clear();
-	// cmd.params.push_back("wrongpass");
-	// std::cout << "[CMD] PASS wrongpass\n";
-	// CommandHandler::handleCmd(&server, bob, cmd);
-	// std::cout << "[RESULT] Bob authenticated: " << bob->isAuthenticated() << "\n";
-
-	// printSeparator("PASS - No Parameters");
-	// cmd.params.clear();
-	// std::cout << "[CMD] PASS (no params)\n";
-	// CommandHandler::handleCmd(&server, charlie, cmd);
-	// std::cout << "[RESULT] Charlie authenticated: " << charlie->isAuthenticated() << "\n";
-
-	// Authenticate Bob properly for future tests
-	cmd.params.clear();
-	cmd.params.push_back("secretpass");
-	CommandHandler::handleCmd(&server, bob, cmd);
-	// std::cout << "\n[SETUP] Bob authenticated with correct password\n";
-
-	// =============== TEST NICK COMMAND ===============
-	// printSeparator("NICK - Valid Nickname");
-	cmd.command = "NICK";
-	cmd.params.clear();
-	cmd.params.push_back("Alice");
-	// std::cout << "[CMD] NICK Alice\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-	// std::cout << "[RESULT] Alice's nickname: " << alice->getNickname() << "\n";
-
-	// printSeparator("NICK - Duplicate Nickname");
-	// cmd.params.clear();
-	// cmd.params.push_back("Alice");
-	// std::cout << "[CMD] NICK Alice (Bob trying to use Alice's nick)\n";
-	// CommandHandler::handleCmd(&server, bob, cmd);
-	// std::cout << "[RESULT] Bob's nickname: " << (bob->getNickname().empty() ? "(none)" : bob->getNickname()) << "\n";
-
-	// printSeparator("NICK - Valid Unique Nickname");
-	cmd.params.clear();
-	cmd.params.push_back("BobTheBuilder");
-	// std::cout << "[CMD] NICK BobTheBuilder\n";
-	CommandHandler::handleCmd(&server, bob, cmd);
-	// std::cout << "[RESULT] Bob's nickname: " << bob->getNickname() << "\n";
-
-	// printSeparator("NICK - No Parameters");
-	// cmd.params.clear();
-	// std::cout << "[CMD] NICK (no params)\n";
-	// CommandHandler::handleCmd(&server, alice, cmd);
-
-	// printSeparator("NICK - Without Authentication");
-	// cmd.params.clear();
-	// cmd.params.push_back("CharlieBrown");
-	// std::cout << "[CMD] NICK CharlieBrown (Charlie not authenticated)\n";
-	// CommandHandler::handleCmd(&server, charlie, cmd);
-	// std::cout << "[RESULT] Charlie's nickname: " << (charlie->getNickname().empty() ? "(none)" : charlie->getNickname()) << "\n";
-
-	// printClients(server);
-
-	// // =============== TEST USER COMMAND ===============
-	// printSeparator("USER - Valid Registration");
-	cmd.command = "USER";
-	cmd.params.clear();
-	cmd.params.push_back("alice_user");
-	cmd.trailing = "Alice Wonderland";
-	// std::cout << "[CMD] USER alice_user :Alice Wonderland\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-	// std::cout << "[RESULT] Username: " << alice->getUsername() << "\n";
-	// std::cout << "[RESULT] Realname: " << alice->getRealname() << "\n";
-	// std::cout << "[RESULT] Registered: " << alice->isRegistered() << "\n";
-
-	// printSeparator("USER - Valid Registration for Bob");
-	cmd.params.clear();
-	cmd.params.push_back("bob_user");
-	cmd.trailing = "Bob The Great";
-	// std::cout << "[CMD] USER bob_user :Bob The Great\n";
-	CommandHandler::handleCmd(&server, bob, cmd);
-	// std::cout << "[RESULT] Username: " << bob->getUsername() << "\n";
-	// std::cout << "[RESULT] Realname: " << bob->getRealname() << "\n";
-	// std::cout << "[RESULT] Registered: " << bob->isRegistered() << "\n";
-
-	// printSeparator("USER - Duplicate Username");
-	// cmd.params.clear();
-	// cmd.params.push_back("alice_user");
-	// cmd.trailing = "Fake Alice";
-	// std::cout << "[CMD] USER alice_user :Fake Alice (Bob trying Alice's username)\n";
-	// CommandHandler::handleCmd(&server, bob, cmd);
-
-	// printSeparator("USER - Missing Parameters");
-	// cmd.params.clear();
+	// cmd.params.push_back("#general");
 	// cmd.trailing = "";
-	// std::cout << "[CMD] USER (no params)\n";
-	// CommandHandler::handleCmd(&server, charlie, cmd);
+	// CommandHandler handler(&server, alice, cmd);
+	// handler.handleCmd();
 
-	printClients(server);
+	// printSeparator("JOIN - Second user joins #general");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// CommandHandler handler2(&server, bob, cmd);
+	// handler2.handleCmd();
 
-	// =============== TEST JOIN COMMAND ===============
-	// printSeparator("JOIN - Create New Channel");
-	cmd.command = "JOIN";
+	// printSeparator("JOIN - Duplicate join attempt (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// CommandHandler handler3(&server, alice, cmd);
+	// handler3.handleCmd();
+
+	// printSeparator("JOIN - No parameters (should fail)");
+	// cmd.params.clear();
+	// CommandHandler handler4(&server, charlie, cmd);
+	// handler4.handleCmd();
+
+	// printSeparator("JOIN - Create multiple channels");
+	// cmd.params.clear();
+	// cmd.params.push_back("#testing");
+	// CommandHandler handler5(&server, charlie, cmd);
+	// handler5.handleCmd();
+
+	// cmd.params.clear();
+	// cmd.params.push_back("#random");
+	// CommandHandler handler6(&server, dave, cmd);
+	// handler6.handleCmd();
+
+	// printSeparator("JOIN - User joins existing channel");
+	// cmd.params.clear();
+	// cmd.params.push_back("#testing");
+	// CommandHandler handler7(&server, alice, cmd);
+	// handler7.handleCmd();
+
+	// printChannels(server);
+	// printChannelMemberships(server);
+
+	// // ==================== MODE TESTS ====================
+
+	// printSeparator("MODE - Set invite-only (+i) on #general");
+	// cmd.command = "MODE";
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+i");
+	// cmd.trailing = "";
+	// CommandHandler modeH1(&server, alice, cmd);
+	// modeH1.handleCmd();
+
+	// printSeparator("MODE - Non-operator tries to set mode (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("-i");
+	// CommandHandler modeH2(&server, bob, cmd);
+	// modeH2.handleCmd();
+
+	// printSeparator("MODE - Remove invite-only (-i) on #general");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("-i");
+	// CommandHandler modeH3(&server, alice, cmd);
+	// modeH3.handleCmd();
+
+	// printSeparator("MODE - Set channel key (+k)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+k");
+	// cmd.params.push_back("mykey123");
+	// CommandHandler modeH4(&server, alice, cmd);
+	// modeH4.handleCmd();
+
+	// printSeparator("MODE - Remove channel key (-k)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("-k");
+	// CommandHandler modeH5(&server, alice, cmd);
+	// modeH5.handleCmd();
+
+	// printSeparator("MODE - Set user limit (+l) with valid number");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+l");
+	// cmd.params.push_back("10");
+	// CommandHandler modeH6(&server, alice, cmd);
+	// modeH6.handleCmd();
+
+	// printSeparator("MODE - Set user limit with invalid number (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+l");
+	// cmd.params.push_back("notanumber");
+	// CommandHandler modeH7(&server, alice, cmd);
+	// modeH7.handleCmd();
+
+	// printSeparator("MODE - Set user limit with zero (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+l");
+	// cmd.params.push_back("0");
+	// CommandHandler modeH8(&server, alice, cmd);
+	// modeH8.handleCmd();
+
+	// printSeparator("MODE - Remove user limit (-l)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("-l");
+	// CommandHandler modeH9(&server, alice, cmd);
+	// modeH9.handleCmd();
+
+	// printSeparator("MODE - Set topic restriction (+t)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+t");
+	// CommandHandler modeH10(&server, alice, cmd);
+	// modeH10.handleCmd();
+
+	// printSeparator("MODE - Remove topic restriction (-t)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("-t");
+	// CommandHandler modeH11(&server, alice, cmd);
+	// modeH11.handleCmd();
+
+	// printSeparator("MODE - Missing parameters (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// CommandHandler modeH12(&server, alice, cmd);
+	// modeH12.handleCmd();
+
+	// printSeparator("MODE - Invalid mode character (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("+x");
+	// CommandHandler modeH13(&server, alice, cmd);
+	// modeH13.handleCmd();
+
+	// printSeparator("MODE - On non-existent channel (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#nonexistent");
+	// cmd.params.push_back("+i");
+	// CommandHandler modeH14(&server, alice, cmd);
+	// modeH14.handleCmd();
+
+	// printSeparator("MODE - User not in channel (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#testing");
+	// cmd.params.push_back("+i");
+	// CommandHandler modeH15(&server, bob, cmd);
+	// modeH15.handleCmd();
+
+	// ==================== TOPIC TESTS ====================
+
+	printSeparator("TOPIC - Set topic on #general");
+	cmd.command = "TOPIC";
+	cmd.params.clear();
+	cmd.params.push_back("#general");
+	cmd.trailing = "Welcome to general discussion";
+	CommandHandler topicH1(&server, alice, cmd);
+	topicH1.handleCmd();
+
+	printSeparator("TOPIC - Get topic");
 	cmd.params.clear();
 	cmd.params.push_back("#general");
 	cmd.trailing = "";
-	// std::cout << "[CMD] JOIN #general (Alice)\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-	// printChannels(server);
+	CommandHandler topicH2(&server, bob, cmd);
+	topicH2.handleCmd();
 
-	// printSeparator("JOIN - Join Existing Channel");
+	printSeparator("TOPIC - Change topic");
 	cmd.params.clear();
 	cmd.params.push_back("#general");
-	// std::cout << "[CMD] JOIN #general (Bob)\n";
-	CommandHandler::handleCmd(&server, bob, cmd);
-	// printChannels(server);
+	cmd.trailing = "New topic: Rules updated!";
+	CommandHandler topicH3(&server, alice, cmd);
+	topicH3.handleCmd();
 
-	// printSeparator("JOIN - Duplicate Join Attempt");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	// std::cout << "[CMD] JOIN #general (Alice again)\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-	// printChannels(server);
-
-	// printSeparator("JOIN - Missing Parameters");
-	cmd.params.clear();
-	// std::cout << "[CMD] JOIN (no params) (Charlie)\n";
-	CommandHandler::handleCmd(&server, charlie, cmd);
-
-	// printSeparator("JOIN - Unregistered Client");
-	cmd.params.clear();
-	cmd.params.push_back("#unreg");
-	// std::cout << "[CMD] JOIN #unreg (Charlie unregistered)\n";
-	CommandHandler::handleCmd(&server, charlie, cmd);
-
-	printChannels(server);
-
-	// =============== TEST MODE COMMAND ===============
-	printSeparator("MODE - Set Invite-Only (+i)");
+	printSeparator("TOPIC - Non-operator changes topic with restriction");
 	cmd.command = "MODE";
 	cmd.params.clear();
 	cmd.params.push_back("#general");
-	cmd.params.push_back("+i");
-	std::cout << "[CMD] MODE #general +i\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
+	cmd.params.push_back("+t");
+	CommandHandler modeRestrict(&server, alice, cmd);
+	modeRestrict.handleCmd();
 
-	printSeparator("MODE - Remove Invite-Only (-i)");
+	cmd.command = "TOPIC";
 	cmd.params.clear();
 	cmd.params.push_back("#general");
-	cmd.params.push_back("-i");
-	std::cout << "[CMD] MODE #general -i\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
+	cmd.trailing = "Trying to change restricted topic";
+	CommandHandler topicH4(&server, bob, cmd);
+	topicH4.handleCmd();
 
-	printSeparator("MODE - Set Channel Key (+k)");
+	printSeparator("TOPIC - Missing parameters (should fail)");
 	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("+k");
-	cmd.params.push_back("secret123");
-	std::cout << "[CMD] MODE #general +k secret123\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
+	cmd.trailing = "";
+	CommandHandler topicH5(&server, alice, cmd);
+	topicH5.handleCmd();
 
-	printSeparator("MODE - Remove Channel Key (-k)");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("-k");
-	std::cout << "[CMD] MODE #general -k\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-
-	printSeparator("MODE - Set User Limit (+l)");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("+l");
-	cmd.params.push_back("50");
-	std::cout << "[CMD] MODE #general +l 50\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-
-	printSeparator("MODE - Invalid User Limit");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("+l");
-	cmd.params.push_back("notanumber");
-	std::cout << "[CMD] MODE #general +l notanumber\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-
-	printSeparator("MODE - Remove User Limit (-l)");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("-l");
-	std::cout << "[CMD] MODE #general -l\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-
-	printSeparator("MODE - Unknown Mode");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("+x");
-	std::cout << "[CMD] MODE #general +x\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-
-	printSeparator("MODE - Missing Parameters");
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	std::cout << "[CMD] MODE #general (no mode specified)\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
-
-	printSeparator("MODE - Non-member trying to set mode");
-	charlie->setAuthenticated(true);
-	cmd.params.clear();
-	cmd.params.push_back("#general");
-	cmd.params.push_back("+i");
-	std::cout << "[CMD] MODE #general +i (Charlie not in channel)\n";
-	CommandHandler::handleCmd(&server, charlie, cmd);
-
-	printSeparator("MODE - Non-existent Channel");
+	printSeparator("TOPIC - Non-existent channel (should fail)");
 	cmd.params.clear();
 	cmd.params.push_back("#nonexistent");
-	cmd.params.push_back("+i");
-	std::cout << "[CMD] MODE #nonexistent +i\n";
-	CommandHandler::handleCmd(&server, alice, cmd);
+	cmd.trailing = "test";
+	CommandHandler topicH6(&server, alice, cmd);
+	topicH6.handleCmd();
 
-	// // =============== TEST TOPIC COMMAND ===============
-	// printSeparator("TOPIC - Command Test");
-	// cmd.command = "TOPIC";
-	// cmd.params.clear();
-	// cmd.params.push_back("#general");
-	// cmd.trailing = "Welcome to the general channel!";
-	// std::cout << "[CMD] TOPIC #general :Welcome to the general channel!\n";
-	// std::cout << "[INFO] TOPIC command is not fully implemented yet\n";
-	// CommandHandler::handleCmd(&server, alice, cmd);
+	printSeparator("TOPIC - User not in channel (should fail)");
+	cmd.params.clear();
+	cmd.params.push_back("#testing");
+	cmd.trailing = "Should fail";
+	CommandHandler topicH7(&server, bob, cmd);
+	topicH7.handleCmd();
 
-	// // =============== TEST INVITE COMMAND ===============
-	// printSeparator("INVITE - Command Test");
+	// // ==================== INVITE TESTS ====================
+
+	// printSeparator("INVITE - Basic invite");
 	// cmd.command = "INVITE";
 	// cmd.params.clear();
-	// cmd.params.push_back("BobTheBuilder");
-	// cmd.params.push_back("#random");
-	// std::cout << "[CMD] INVITE BobTheBuilder #random\n";
-	// std::cout << "[INFO] INVITE command is not fully implemented yet\n";
-	// CommandHandler::handleCmd(&server, alice, cmd);
+	// cmd.params.push_back("Dave");
+	// cmd.params.push_back("#general");
+	// cmd.trailing = "";
+	// CommandHandler inviteH1(&server, alice, cmd);
+	// inviteH1.handleCmd();
 
-	// // =============== TEST KICK COMMAND ===============
-	// printSeparator("KICK - Command Test");
+	// printSeparator("INVITE - Missing parameters (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("Dave");
+	// CommandHandler inviteH2(&server, alice, cmd);
+	// inviteH2.handleCmd();
+
+	// printSeparator("INVITE - Invite non-existent user (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("NonExistent");
+	// cmd.params.push_back("#general");
+	// CommandHandler inviteH3(&server, alice, cmd);
+	// inviteH3.handleCmd();
+
+	// printSeparator("INVITE - Invite to non-existent channel");
+	// cmd.params.clear();
+	// cmd.params.push_back("Dave");
+	// cmd.params.push_back("#nonexistent");
+	// CommandHandler inviteH4(&server, alice, cmd);
+	// inviteH4.handleCmd();
+
+	// printSeparator("INVITE - Non-member tries to invite (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("Dave");
+	// cmd.params.push_back("#testing");
+	// CommandHandler inviteH5(&server, bob, cmd);
+	// inviteH5.handleCmd();
+
+	// printSeparator("INVITE - Invite already on channel (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("Bob");
+	// cmd.params.push_back("#general");
+	// CommandHandler inviteH6(&server, alice, cmd);
+	// inviteH6.handleCmd();
+
+	// // ==================== KICK TESTS ====================
+
+	// printSeparator("KICK - Basic kick");
 	// cmd.command = "KICK";
 	// cmd.params.clear();
 	// cmd.params.push_back("#general");
-	// cmd.params.push_back("BobTheBuilder");
+	// cmd.params.push_back("Bob");
 	// cmd.trailing = "Spamming";
-	// std::cout << "[CMD] KICK #general BobTheBuilder :Spamming\n";
-	// std::cout << "[INFO] KICK command is not fully implemented yet\n";
-	// CommandHandler::handleCmd(&server, alice, cmd);
+	// CommandHandler kickH1(&server, alice, cmd);
+	// kickH1.handleCmd();
 
-	// // =============== TEST QUIT COMMAND ===============
-	// printSeparator("QUIT - With Message");
-	// cmd.command = "QUIT";
+	// printSeparator("KICK - Non-operator tries to kick (should fail)");
 	// cmd.params.clear();
-	// cmd.trailing = "Goodbye everyone!";
-	// std::cout << "[CMD] QUIT :Goodbye everyone!\n";
-	// CommandHandler::handleCmd(&server, bob, cmd);
-	// std::cout << "[INFO] Bob should be marked for disconnection\n";
-
-	// printSeparator("QUIT - Without Message");
-	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("Alice");
 	// cmd.trailing = "";
-	// std::cout << "[CMD] QUIT (no message)\n";
-	// CommandHandler::handleCmd(&server, charlie, cmd);
-	// std::cout << "[INFO] Charlie should be marked for disconnection\n";
+	// CommandHandler kickH2(&server, bob, cmd);
+	// kickH2.handleCmd();
 
-	// =============== FINAL STATE ===============
-	printSeparator("FINAL STATE");
+	// printSeparator("KICK - Missing parameters (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// CommandHandler kickH3(&server, alice, cmd);
+	// kickH3.handleCmd();
+
+	// printSeparator("KICK - Non-existent channel (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#nonexistent");
+	// cmd.params.push_back("Bob");
+	// cmd.trailing = "";
+	// CommandHandler kickH4(&server, alice, cmd);
+	// kickH4.handleCmd();
+
+	// printSeparator("KICK - Kick user not in channel (should fail)");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("Bob");
+	// CommandHandler kickH5(&server, alice, cmd);
+	// kickH5.handleCmd();
+
+	// printSeparator("KICK - With reason message");
+	// cmd.params.clear();
+	// cmd.params.push_back("#general");
+	// cmd.params.push_back("Charlie");
+	// cmd.trailing = "Being too quiet";
+	// CommandHandler kickH6(&server, alice, cmd);
+	// kickH6.handleCmd();
+
+	// ==================== FINAL STATE ====================
+	printSeparator("FINAL SERVER STATE");
 	printClients(server);
 	printChannels(server);
 	printChannelMemberships(server);
@@ -412,28 +480,3 @@ int main()
 	return 0;
 }
 
-// int main(int argc, char *argv[])
-// {
-// 	(void)argv;
-// 	if (argc != 3)
-// 	{
-// 		std::cout << "Usage: ./ircserv <port> <password>" << std::endl;
-// 		return 1;
-// 	}
-	
-// 	Server irc_server;
-	
-// 	try
-// 	{	
-// 		std::cout << "init server\n";
-// 		irc_server.init(argv);
-// 		irc_server.pollLoop();
-
-// 	}
-// 	catch(const std::exception& e)
-// 	{
-// 		std::cerr << e.what() << '\n';
-// 		irc_server.shutdown();
-// 	}
-// 	return 0;
-// }

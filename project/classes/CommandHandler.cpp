@@ -1,7 +1,31 @@
 #include "../headers/CommandHandler.hpp"
 #include <iostream>
 
-std::map<std::string, CommandHandler::handlerFunc> CommandHandler::_handlers;
+// ---------------- Member Functions  ----------------
+
+void CommandHandler::handleCmd()
+{
+    std::cout << "Entered command handler." << std::endl;
+
+    std::map<std::string, handlerFunc>::iterator it = _handlers.find(_cmd.command);
+
+    if (it == _handlers.end())
+        std::cout << "Unknown command" << std::endl;
+    else
+    {
+        std::cout << "Command recognised and going to the execution." << std::endl;
+        (this->*it->second)();
+    }
+
+    // correctlyFormattedMessage = formatMsg(someMessage);
+    // server->replyToClient(client, correctlyFormattedMessage);
+}
+
+// void CommandHandler::sendToChannel(const std::string &channelName, const std::string &msg, Client *exceptClient)
+// {
+// }
+
+// void sendToClient(int fd, const std::string& msg);
 
 // ---------------- 4.1 CONNECTION REGISTRATION ----------------
 
@@ -9,25 +33,23 @@ std::map<std::string, CommandHandler::handlerFunc> CommandHandler::_handlers;
 4.1.1 Password message
     Command: PASS <password>
 
-    The password can and must be set before any attempt to
-    register the connection is made.
+    The password can and must be set before any attempt to register the connection is made.
 
-    Numeric Replies:
-            ERR_NEEDMOREPARAMS
-            ERR_ALREADYREGISTRED
     Example:
            PASS secretpasswordhere
 */
-void CommandHandler::_handlePass(Server *server, Client *client, const IrcMessage &cmd)
+void CommandHandler::_handlePass()
 {
-    if (cmd.params.empty())
+    if (_cmd.params.empty()){
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
-    else if (client->isRegistered())
+    }
+    else if (_client->isRegistered()){
         std::cout << "ERR_ALREADYREGISTRED" << std::endl;
-    else if (!cmd.params[0].compare(server->getPassword()))
+    }
+    else if (!_cmd.params[0].compare(_server->getPassword()))
     {
-        client->setAuthenticated(true);
-        std::cout << "Authorised successfully with the password from client: " << cmd.params[0] << std::endl;
+        _client->setAuthenticated(true);
+        std::cout << "Authorised successfully with the password from client: " << _cmd.params[0] << std::endl;
     }
     else
         std::cout << "Wrong password." << std::endl;
@@ -44,11 +66,11 @@ bool CommandHandler::_compareUser(Client *client, const std::string &name)
 }
 
 // Util to check whether a client with the same name already exists
-bool CommandHandler::_isNameDublicate(Server *server, std::string name, bool (*compareFunc)(Client *, const std::string &))
+bool CommandHandler::_isNameDublicate(Server *server, std::string name, bool (CommandHandler::*compareFunc)(Client *, const std::string &))
 {
     for (std::map<int, Client *>::iterator it = server->Clients.begin(); it != server->Clients.end(); ++it)
     {
-        if (it->second && compareFunc(it->second, name))
+        if (it->second && (this->*compareFunc)(it->second, name))
             return true;
     }
     return false;
@@ -58,31 +80,27 @@ bool CommandHandler::_isNameDublicate(Server *server, std::string name, bool (*c
 4.1.2 Nick message
     Command: NICK <nickname>
 
-    NICK message is used to give user a nickname or change the previous
-    one.
+    NICK message is used to give user a nickname or change the previous one.
 
-    Numeric Replies:
-           ERR_NONICKNAMEGIVEN             ERR_ERRONEUSNICKNAME
-           ERR_NICKNAMEINUSE
     Examples:
         NICK Wiz                        ; Introducing new nick "Wiz".
 */
-void CommandHandler::_handleNick(Server *server, Client *client, const IrcMessage &cmd)
+void CommandHandler::_handleNick()
 {
-    if (cmd.params.empty()) // should i check for too many params? or just ignore the rest of the params and take into account only the first one and what about the trailing?
+    if (_cmd.params.empty()) // should i check for too many params? or just ignore the rest of the params and take into account only the first one and what about the trailing?
         std::cout << "ERR_NONICKNAMEGIVEN" << std::endl;
     // else if () // check for whitespaces and special characters - should not be present
     // {
     //     std::cout << "ERR_ERRONEUSNICKNAME" << std::endl;
     // }
-    else if (!client->isAuthenticated())
+    else if (!_client->isAuthenticated())
         std::cout << "Client is not authorised. password first." << std::endl; // theres no error for that in the protocol?
-    else if (_isNameDublicate(server, cmd.params[0], &_compareNick))
+    else if (_isNameDublicate(_server, _cmd.params[0], &CommandHandler::_compareNick))
         std::cout << "ERR_NICKNAMEINUSE" << std::endl;
     else
     {
-        client->setNickname(cmd.params[0]);
-        std::cout << "Set the nickname successfully: " << client->getNickname() << std::endl;
+        _client->setNickname(_cmd.params[0]);
+        std::cout << "Set the nickname successfully: " << _client->getNickname() << std::endl;
     }
 }
 
@@ -92,29 +110,27 @@ void CommandHandler::_handleNick(Server *server, Client *client, const IrcMessag
 
     Only after both USER and NICK have been received from a client does a user become registered.
 
-    Numeric Replies:
-            ERR_NEEDMOREPARAMS              ERR_ALREADYREGISTRED
     Examples:
         USER guest :Ronnie Reagan   ; User registering themselves with a
                                     username of "guest" and real name
                                     "Ronnie Reagan".
 */
-void CommandHandler::_handleUser(Server *server, Client *client, const IrcMessage &cmd) // while the NICK command is allowed to change the nickname, can the client change the usernmae and real name?
+void CommandHandler::_handleUser() // while the NICK command is allowed to change the nickname, can the client change the usernmae and real name?
 {
-    if (!client->isAuthenticated())
+    if (!_client->isAuthenticated())
         std::cout << "Client is not authorised. password first." << std::endl;
-    else if (client->getNickname().empty())
+    else if (_client->getNickname().empty())
         std::cout << "Set the Nick first." << std::endl;
-    else if (cmd.params.empty() || cmd.trailing.empty()) // it didnt work with empty realname
+    else if (_cmd.params.empty() || _cmd.trailing.empty()) // it didnt work with empty realname
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
-    else if (_isNameDublicate(server, cmd.params[0], &_compareUser))
+    else if (_isNameDublicate(_server, _cmd.params[0], &CommandHandler::_compareUser))
         std::cout << "ERR_ALREADYREGISTRED" << std::endl;
     else
     {
-        client->setUsername(cmd.params[0]);
-        client->setRealname(cmd.trailing);
-        client->setRegistered(true);
-        std::cout << "Set the username and registered the client successfully: " << client->getUsername() << " and " << client->getRealname() << std::endl;
+        _client->setUsername(_cmd.params[0]);
+        _client->setRealname(_cmd.trailing);
+        _client->setRegistered(true);
+        std::cout << "Set the username and registered the client successfully: " << _client->getUsername() << " and " << _client->getRealname() << std::endl;
     }
 }
 
@@ -122,18 +138,17 @@ void CommandHandler::_handleUser(Server *server, Client *client, const IrcMessag
 4.1.6 Quit
     Command: QUIT [<Quit message>]
 
-    A client session is ended with a quit message. If a "Quit
-    Message" is given, this will be sent instead of the default message,
-    the nickname.
+    A client session is ended with a quit message. If a "Quit Message" is given,
+    this will be sent instead of the default message, the nickname.
 
     Examples:
         QUIT :Gone to have lunch        ; Preferred message format.
 */
-void CommandHandler::_handleQuit(Server *server, Client *client, const IrcMessage &cmd) // should i check for params?
+void CommandHandler::_handleQuit() // should i check for params?
 {
-    if (!cmd.trailing.empty())
-        std::cout << "Client sent a message before they quit: " << cmd.trailing << std::endl;
-    server->markClientToDisconnect(client->fd);
+    if (!_cmd.trailing.empty())
+        std::cout << "Client sent a message before they quit: " << _cmd.trailing << std::endl;
+    _server->markClientToDisconnect(_client->fd);
 }
 
 // ---------------- 4.2 CHANNEL OPERATIONS ----------------
@@ -142,15 +157,8 @@ void CommandHandler::_handleQuit(Server *server, Client *client, const IrcMessag
 4.2.1 Join message
     Command: JOIN <channel>{,<channel>} [<key>{,<key>}]
 
-    The JOIN command is used by a client to start listening to a specific
-    channel.
+    The JOIN command is used by a client to start listening to a specific channel.
 
-    Numeric Replies:
-            ERR_NEEDMOREPARAMS
-            ERR_INVITEONLYCHAN              ERR_BADCHANNELKEY
-            ERR_CHANNELISFULL
-            ERR_NOSUCHCHANNEL               ERR_TOOMANYCHANNELS // is there a limit?
-            RPL_TOPIC
     Examples:
         JOIN #foobar                    ; join channel #foobar.
         JOIN &foo fubar                 ; join channel &foo using key "fubar".
@@ -160,42 +168,42 @@ void CommandHandler::_handleQuit(Server *server, Client *client, const IrcMessag
                                         and channel #bar using key "foobar".
         JOIN #foo,#bar                  ; join channels #foo and #bar.
 */
-void CommandHandler::_handleJoin(Server *server, Client *client, const IrcMessage &cmd)
-{  // need to add a util that will split a string by commas into vector params
-    if (cmd.params.empty())
+void CommandHandler::_handleJoin()
+{ // need to add a util that will split a string by commas into vector params
+    if (_cmd.params.empty())
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
-    else if (!client->isRegistered())
+    else if (!_client->isRegistered())
         std::cout << "Client is not registered." << std::endl;
     // validate a channel name
     // ERR_NOSUCHCHANNEL
     else
     {
-        std::cout << "Searching for the channel under the name: " << cmd.params[0] << std::endl;
+        std::cout << "Searching for the channel under the name: " << _cmd.params[0] << std::endl;
 
-        std::map<std::string, Channel *>::iterator it = server->Channels.find(cmd.params[0]);
+        std::map<std::string, Channel *>::iterator it = _server->Channels.find(_cmd.params[0]);
 
-        if (it == server->Channels.end())
+        if (it == _server->Channels.end())
         {
-            server->createChannel(cmd.params[0]);
-            it = server->Channels.find(cmd.params[0]);
-            it->second->addOperator(client);
-            it->second->addUser(client);
-            client->addToChannel(it->second);
+            _server->createChannel(_cmd.params[0]);
+            it = _server->Channels.find(_cmd.params[0]);
+            it->second->addOperator(_client);
+            it->second->addUser(_client);
+            _client->addToChannel(it->second);
         }
         else
         {
-            if (client->hasChannel(it->second))
+            if (_client->hasChannel(it->second))
                 std::cout << "Client already is in the channel." << std::endl;
-            else if (it->second->isInviteOnly())
+            else if (it->second->isInviteOnly() && !_client->isInvited(it->first))
                 std::cout << "ERR_INVITEONLYCHAN" << std::endl;
-            else if (it->second->hasKey() && ((cmd.params.size() >= 2 && cmd.params[1].compare(it->second->getKey())) || cmd.params.size() < 2))
+            else if (it->second->hasKey() && ((_cmd.params.size() >= 2 && _cmd.params[1].compare(it->second->getKey())) || _cmd.params.size() < 2))
                 std::cout << "ERR_BADCHANNELKEY" << std::endl;
             else if (it->second->getUserLimit() > 0 && it->second->getUserLimit() <= it->second->getNumOfUsers())
                 std::cout << "ERR_CHANNELISFULL" << std::endl;
             else
             {
-                it->second->addUser(client);
-                client->addToChannel(it->second);
+                it->second->addUser(_client);
+                _client->addToChannel(it->second);
                 std::cout << "RPL_TOPIC" << std::endl;
                 std::cout << "RPL_NAMREPLY" << std::endl;
             }
@@ -203,36 +211,207 @@ void CommandHandler::_handleJoin(Server *server, Client *client, const IrcMessag
     }
 }
 
-// i - invite-only channel flag
-void CommandHandler::_modeInvite(const IrcMessage &cmd, Channel *channel, int signIsPositive)
+/*
+4.2.8 Kick command
+    Command: KICK <channel> <user> [<comment>]
+
+    The KICK command can be  used  to  forcibly  remove  a  user  from  a
+    channel.   It  'kicks  them  out'  of the channel (forced PART).
+
+    Examples:
+        KICK &Melbourne Matthew                 ; Kick Matthew from &Melbourne
+        KICK #Finnish John :Speaking English    ; Kick John from #Finnish using
+                                                "Speaking English" as the reason (comment).
+    NOTE:
+    It is possible to extend the KICK command parameters to the
+    following:
+        <channel>{,<channel>} <user>{,<user>} [<comment>]
+*/
+void CommandHandler::_handleKick()
 {
-    (void)cmd;
+    if (_cmd.params.size() < 2)
+    {
+        std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        return;
+    }
+
+    Channel *channel = _server->getChannel(_cmd.params[0]);
+
+    if (!channel)
+        std::cout << "ERR_NOSUCHCHANNEL" << std::endl;
+    else if (!channel->isOperator(_client))
+        std::cout << "ERR_CHANOPRIVSNEEDED" << std::endl;
+    else
+    {
+        Client *kickedClient = _server->getClient(_cmd.params[1]);
+
+        if (!channel->hasUser(kickedClient))
+            std::cout << "ERR_NOTONCHANNEL" << std::endl;
+        else
+        {
+            std::cout << "Removing the user " << kickedClient->getNickname();
+            if (!_cmd.trailing.empty())
+            {
+                std::cout << " with a message: " << _cmd.trailing;
+            }
+            std::cout << std::endl;
+            channel->removeUser(kickedClient);
+        }
+    }
+}
+
+/*
+4.2.7 Invite message
+    Command: INVITE <nickname> <channel>
+
+    The INVITE message is used to invite users to a channel.
+
+    Examples:
+        INVITE Wiz #Twilight_Zone       ; Command to invite WiZ to #Twilight_zone
+*/
+void CommandHandler::_handleInvite()
+{
+    if (_cmd.params.size() < 2)
+    {
+        std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        return;
+    }
+
+    Channel *channel = _server->getChannel(_cmd.params[1]);
+    Client *invitedClient = _server->getClient(_cmd.params[0]);
+
+    if (invitedClient)
+    {
+        if (channel)
+        {
+            if (channel->isInviteOnly() && !channel->isOperator(_client))
+            {
+                std::cout << "ERR_CHANOPRIVSNEEDED" << std::endl;
+            }
+            else if (!channel->hasUser(_client))
+            {
+                std::cout << "ERR_NOTONCHANNEL" << std::endl;
+            }
+            else if (channel->hasUser(invitedClient))
+            {
+                std::cout << "ERR_USERONCHANNEL" << std::endl;
+            }
+            else
+            {
+                std::cout << "RPL_INVITING" << std::endl;
+                _client->addInvited(_cmd.params[0]);
+            }
+        }
+        else
+        {
+            std::cout << "RPL_INVITING" << std::endl;
+            _client->addInvited(_cmd.params[0]);
+        }
+    }
+    else
+        std::cout << "ERR_NOSUCHNICK" << std::endl;
+}
+
+/*
+4.2.4 Topic message
+    Command: TOPIC <channel> [<topic>]
+
+    The TOPIC message is used to change or view the topic of a channel.
+
+    Examples:
+        TOPIC #test :another topic      ;set the topic on #test to "another topic".
+        TOPIC #test                     ;check the topic for #test.
+*/
+void CommandHandler::_handleTopic()
+{
+    if (_cmd.params.empty())
+    {
+        std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        return;
+    }
+
+    Channel *channel = _server->getChannel(_cmd.params[0]);
+
+    if (channel && _client->hasChannel(channel))
+    {
+        if (channel->isTopicRestricted() && !channel->isOperator(_client))
+            std::cout << "ERR_CHANOPRIVSNEEDED" << std::endl;
+        else
+        {
+            if (!_cmd.trailing.empty()) // only trailing or a param too?
+            {
+                std::cout << "Setting the topic to a new one: " << _cmd.trailing << std::endl;
+                channel->setTopic(_cmd.trailing);
+            }
+            else
+            {
+                if (channel->getTopic().empty())
+                    std::cout << "RPL_NOTOPIC" << std::endl;
+                else
+                    std::cout << "RPL_TOPIC: " << channel->getTopic() << std::endl;
+            }
+        }
+    }
+    else
+        std::cout << "ERR_NOTONCHANNEL or no such channel exists." << std::endl;
+}
+
+// ---------------- MODES ----------------
+
+// i - invite-only channel flag
+void CommandHandler::_modeInvite(Channel *channel, int signIsPositive) // do i need to check if its already invite-only?
+{
     if (signIsPositive)
         channel->setInviteMode(true);
     else
         channel->setInviteMode(false);
 }
 
-// k - set a channel key (password)
-void CommandHandler::_modeKey(const IrcMessage &cmd, Channel *channel, int signIsPositive) // what if key is already set? we change?
+// t - set the restrictions on the topic modification
+void CommandHandler::_modeTopic(Channel *channel, int signIsPositive)
 {
     if (signIsPositive)
-        channel->setKey(cmd.params[2]);
+        channel->setTopicMode(true);
+    else
+        channel->setTopicMode(false);
+}
+
+// k - set a channel key (password)
+void CommandHandler::_modeKey(Channel *channel, int signIsPositive) // what if key is already set? we change?
+{
+    if (signIsPositive)
+        channel->setKey(_cmd.params[2]);
     else
         channel->removeKey();
 }
 
-// l - set the user limit to channel
-void CommandHandler::_modeLimit(const IrcMessage &cmd, Channel *channel, int signIsPositive) // do we restrict this?
+// o - set channel operator privilege
+void CommandHandler::_modeOperator(Channel *channel, int signIsPositive)
 {
-    std::cout << "passing to the setLimit(): " << cmd.params[2] << "\nAfter conversion: " << strtoul(cmd.params[2].c_str(), NULL, 10) << std::endl;
+    (void)channel;
+    (void)signIsPositive;
+    // Client *newOperatorClient = ;
+
+    // if (signIsPositive)
+    //     channel->addOperator() else channel->setInviteMode(false);
+}
+
+// l - set the user limit to channel
+void CommandHandler::_modeLimit(Channel *channel, int signIsPositive) // do we restrict this?
+{
+    std::cout << "passing to the setLimit(): " << _cmd.params[2] << "\nAfter conversion: " << strtoul(_cmd.params[2].c_str(), NULL, 10) << std::endl;
     if (signIsPositive)
     {
-        unsigned long n = strtoul(cmd.params[2].c_str(), NULL, 10);
-        if (n == 0 || n == ULONG_MAX || errno == ERANGE || n > 100000)
-            std::cout << "Enter a valid number. The valid range is [1..100,000]." << std::endl;
+        if (_cmd.params.size() < 3)
+            std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
         else
-            channel->setLimit(n);
+        {
+            unsigned long n = strtoul(_cmd.params[2].c_str(), NULL, 10);
+            if (n == 0 || n == ULONG_MAX || errno == ERANGE || n > UINT_MAX)
+                std::cout << "Enter a valid number. Must be greater than 0 and smaller than " << UINT_MAX << std::endl;
+            else
+                channel->setLimit(static_cast<unsigned int>(n));
+        }
     }
     else
         channel->removeLimit();
@@ -250,194 +429,87 @@ int _identifySign(char sign)
         return INVALID;
 }
 
+void CommandHandler::_init_modes()
+{
+    _modes['i'] = &CommandHandler::_modeInvite;
+    _modes['k'] = &CommandHandler::_modeKey;
+    _modes['l'] = &CommandHandler::_modeLimit;
+    _modes['t'] = &CommandHandler::_modeTopic;
+    _modes['o'] = &CommandHandler::_modeOperator;
+}
+
 /*
 4.2.3 Mode message
     Command: MODE <channel> {[+|-]|o|i|t|l|k} [<limit>] [<user>]
 
     The MODE command is provided so that channel operators may change the
     characteristics of `their' channel.
-*/
-void CommandHandler::_handleMode(Server *server, Client *client, const IrcMessage &cmd) // do we handle multiple modes in one command?
-{
-    Channel *channel = server->getChannel(cmd.params[0]);
 
-    if (cmd.params.empty())
+    struct Mode {
+        char sign;              // '+' or '-'
+        char mode;              // 'i', 't', 'k', 'o', 'l'
+        std::string argument;   // empty if not required
+    };
+*/
+void CommandHandler::_handleMode() // do we handle multiple modes in one command?
+{
+    if (_cmd.params.empty())
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
         return;
     }
 
-    if (channel && client->hasChannel(channel))
+    Channel *channel = _server->getChannel(_cmd.params[0]);
+
+    if (channel && _client->hasChannel(channel))
     {
-        int sign = _identifySign(cmd.params[1][0]);
-
-        if (cmd.params[1].length() >= 2 && sign != INVALID)
+        if (!channel->isOperator(_client))
         {
-            std::map<char, modeFunc> modes;
+            std::cout << "The client trying to change the mode is not an operator. Not allowed." << std::endl;
+            return;
+        }
+        int sign = _identifySign(_cmd.params[1][0]);
 
-            modes['i'] = &_modeInvite;
-            modes['k'] = &_modeKey;
-            modes['l'] = &_modeLimit;
+        if (_cmd.params[1].length() >= 2 && sign != INVALID)
+        {
+            std::cout << "the mode aka _cmd.params[1]: " << _cmd.params[1] << std::endl;
 
-            std::cout << "the mode aka cmd.params[0]: " << cmd.params[0] << "\nthe char aka cmd.params[1][1]: " << cmd.params[1][1] << "\nthe sign aka param[1][0]: " << cmd.params[1][0] << std::endl;
+            _init_modes();
 
-            std::map<char, modeFunc>::iterator it = modes.find(cmd.params[1][1]);
+            std::map<char, modeFunc>::iterator it = _modes.find(_cmd.params[1][1]);
 
-            if (it == modes.end())
+            if (it == _modes.end())
                 std::cout << "No such mode." << std::endl;
             else
-                it->second(cmd, channel, sign);
+                (this->*it->second)(channel, sign);
         }
         else
             std::cout << "Wrong format of the parameter." << std::endl;
     }
     else
-        std::cout << "Client has joined no such channel or no such channel exists." << std::endl;
+        std::cout << "ERR_NOTONCHANNEL or no such channel exists." << std::endl; // probbaly need to separate these two errors
 }
-
-/*
-4.2.4 Topic message
-    Command: TOPIC <channel> [<topic>]
-
-    The TOPIC message is used to change or view the topic of a channel.
-    The topic for channel <channel> is returned if there is no <topic>
-    given.  If the <topic> parameter is present, the topic for that
-    channel will be changed, if the channel modes permit this action.
-
-    Numeric Replies:
-            ERR_NEEDMOREPARAMS              ERR_NOTONCHANNEL
-            RPL_NOTOPIC                     RPL_TOPIC
-            ERR_CHANOPRIVSNEEDED
-    Examples:
-        :Wiz TOPIC #test :New topic     ;User Wiz setting the topic.
-        TOPIC #test :another topic      ;set the topic on #test to "another topic".
-        TOPIC #test                     ;check the topic for #test.
-*/
-void CommandHandler::_handleTopic(Server *server, Client *client, const IrcMessage &cmd)
-{
-    if (cmd.params.empty())
-    {
-        std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
-        return;
-    }
-    (void)server;
-    (void)client;
-    (void)cmd;
-}
-
-/*
-4.2.7 Invite message
-    Command: INVITE <nickname> <channel>
-
-    The INVITE message is used to invite users to a channel.  The
-    parameter <nickname> is the nickname of the person to be invited to
-    the target channel <channel>.  There is no requirement that the
-    channel the target user is being invited to must exist or be a valid
-    channel.  To invite a user to a channel which is invite only (MODE
-    +i), the client sending the invite must be recognised as being a
-    channel operator on the given channel.
-
-    Numeric Replies:
-            ERR_NEEDMOREPARAMS              ERR_NOSUCHNICK
-            ERR_NOTONCHANNEL                ERR_USERONCHANNEL
-            ERR_CHANOPRIVSNEEDED
-            RPL_INVITING                    RPL_AWAY
-    Examples:
-        :Angel INVITE Wiz #Dust         ; User Angel inviting WiZ to channel #Dust
-        INVITE Wiz #Twilight_Zone       ; Command to invite WiZ to #Twilight_zone
-*/
-void CommandHandler::_handleInvite(Server *server, Client *client, const IrcMessage &cmd)
-{
-    if (cmd.params.empty())
-    {
-        std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
-        return;
-    }
-    (void)server;
-    (void)client;
-    (void)cmd;
-}
-
-/*
-4.2.8 Kick command
-    Command: KICK <channel> <user> [<comment>]
-
-    The KICK command can be  used  to  forcibly  remove  a  user  from  a
-    channel.   It  'kicks  them  out'  of the channel (forced PART).
-
-    Only a channel operator may kick another user out of a  channel.
-    Each  server that  receives  a KICK message checks that it is valid
-    (ie the sender is actually a  channel  operator)  before  removing
-    the  victim  from  the channel.
-
-    Numeric Replies:
-            ERR_NEEDMOREPARAMS              ERR_NOSUCHCHANNEL
-            ERR_BADCHANMASK                 ERR_CHANOPRIVSNEEDED
-            ERR_NOTONCHANNEL
-    Examples:
-        KICK &Melbourne Matthew                 ; Kick Matthew from &Melbourne
-        KICK #Finnish John :Speaking English    ; Kick John from #Finnish using
-                                                "Speaking English" as the reason (comment).
-        :WiZ KICK #Finnish John         ; KICK message from WiZ to remove John
-                                        from channel #Finnish
-    NOTE:
-    It is possible to extend the KICK command parameters to the
-    following:
-        <channel>{,<channel>} <user>{,<user>} [<comment>]
-*/
-void CommandHandler::_handleKick(Server *server, Client *client, const IrcMessage &cmd)
-{
-    if (cmd.params.empty())
-    {
-        std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
-        return;
-    }
-    (void)server;
-    (void)client;
-    (void)cmd;
-}
-
-/* A channel operator is identified by the '@' symbol next to their
-   nickname whenever it is associated with a channel (ie replies to the
-   NAMES, WHO and WHOIS commands). */
-
-// ---------------- Member Functions  ----------------
-
-void CommandHandler::handleCmd(Server *server, Client *client, const IrcMessage &cmd)
-{
-    std::cout << "Entered command handler." << std::endl;
-    CommandHandler::_handlers["PASS"] = &_handlePass;
-    CommandHandler::_handlers["NICK"] = &_handleNick;
-    CommandHandler::_handlers["USER"] = &_handleUser;
-    CommandHandler::_handlers["QUIT"] = &_handleQuit;
-    CommandHandler::_handlers["JOIN"] = &_handleJoin;
-    CommandHandler::_handlers["MODE"] = &_handleMode;
-
-    std::map<std::string, handlerFunc>::iterator it = _handlers.find(cmd.command);
-
-    if (it == _handlers.end())
-        std::cout << "Unknown command" << std::endl; // format the message
-    else
-    {
-        std::cout << "Command recognised and going to the execution." << std::endl;
-        it->second(server, client, cmd); // executes the handler function
-    }
-
-    // correctlyFormattedMessage = formatMsg(someMessage);
-    // server->replyToClient(client, correctlyFormattedMessage);
-}
-
-// void CommandHandler::sendToChannel(const std::string &channelName, const std::string &msg, Client *exceptClient)
-// {
-// }
-
-// void sendToClient(int fd, const std::string& msg);
 
 // ---------------- Constructors ----------------
 
-CommandHandler::CommandHandler(void)
+CommandHandler::CommandHandler(void) : _server(NULL), _client(NULL), _cmd(IrcMessage())
 {
     std::cout << "(CommandHandler) Default constructor\n";
+}
+
+CommandHandler::CommandHandler(Server *server, Client *client, const IrcMessage &cmd) : _server(server), _client(client), _cmd(cmd)
+{
+    std::cout << "(CommandHandler) Overload constructor\n";
+
+    _handlers["PASS"] = &CommandHandler::_handlePass;
+    _handlers["NICK"] = &CommandHandler::_handleNick;
+    _handlers["USER"] = &CommandHandler::_handleUser;
+    _handlers["QUIT"] = &CommandHandler::_handleQuit;
+    _handlers["JOIN"] = &CommandHandler::_handleJoin;
+    _handlers["MODE"] = &CommandHandler::_handleMode;
+    _handlers["TOPIC"] = &CommandHandler::_handleTopic;
+    _handlers["INVITE"] = &CommandHandler::_handleInvite;
+    _handlers["KICK"] = &CommandHandler::_handleKick;
 }
 
 CommandHandler::~CommandHandler(void)

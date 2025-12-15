@@ -62,6 +62,7 @@ public:
 	void createChannel(const std::string&); // i allocate, needs freeing somewhere
     void removeChannel(const std::string&);
 	Channel *getChannel(const std::string&);
+	Client *getClient(const std::string&);
 
 	static void SignalHandler(int signum);
 

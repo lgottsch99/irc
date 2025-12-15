@@ -71,6 +71,23 @@ void Client::leaveChannel(Channel *channel)
 	_channels.erase(channel);
 }
 
+void Client::addInvited(const std::string &channelName)
+{
+	_invitedChannelNames.insert(channelName);
+}
+
+void Client::removeInvited(const std::string &channelName)
+{
+	_invitedChannelNames.erase(channelName);
+}
+
+bool Client::isInvited(std::string channel)
+{
+	if (_invitedChannelNames.find(channel) != _invitedChannelNames.end())
+		return true;
+	return false;
+}
+
 // ---------------- Constructors ----------------
 
 Client::Client(void)
