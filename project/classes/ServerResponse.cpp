@@ -52,3 +52,4 @@ void Server::broadcastFromUser(
 }
 
 
+// operator nickname starts with '@'

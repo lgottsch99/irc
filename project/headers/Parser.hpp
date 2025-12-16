@@ -9,6 +9,9 @@
 // example:
 // message    =  [ ":" prefix " " ] command [ params ] crlf
 
+// handle MODE with multiple modes
+// JOIN - split by ','
+// check KICK message (comma separated?, no white spaces?)
 struct IrcMessage {
     std::string command;
     std::vector<std::string> params;
