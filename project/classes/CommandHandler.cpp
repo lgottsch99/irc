@@ -10,7 +10,9 @@ void CommandHandler::handleCmd()
     std::map<std::string, handlerFunc>::iterator it = _handlers.find(_cmd.command);
 
     if (it == _handlers.end())
+    {
         std::cout << "Unknown command" << std::endl;
+    }
     else
     {
         std::cout << "Command recognised and going to the execution." << std::endl;
@@ -40,10 +42,13 @@ void CommandHandler::handleCmd()
 */
 void CommandHandler::_handlePass()
 {
-    if (_cmd.params.empty()){
+    if (_cmd.params.empty())
+    {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: PASS <password>" << std::endl;
     }
-    else if (_client->isRegistered()){
+    else if (_client->isRegistered())
+    {
         std::cout << "ERR_ALREADYREGISTRED" << std::endl;
     }
     else if (!_cmd.params[0].compare(_server->getPassword()))
@@ -88,19 +93,26 @@ bool CommandHandler::_isNameDublicate(Server *server, std::string name, bool (Co
 void CommandHandler::_handleNick()
 {
     if (_cmd.params.empty()) // should i check for too many params? or just ignore the rest of the params and take into account only the first one and what about the trailing?
+    {
         std::cout << "ERR_NONICKNAMEGIVEN" << std::endl;
+        std::cout << "Use: NICK <nickname>" << std::endl;
+    }
     // else if () // check for whitespaces and special characters - should not be present
     // {
     //     std::cout << "ERR_ERRONEUSNICKNAME" << std::endl;
     // }
     else if (!_client->isAuthenticated())
+    {
         std::cout << "Client is not authorised. password first." << std::endl; // theres no error for that in the protocol?
+    }
     else if (_isNameDublicate(_server, _cmd.params[0], &CommandHandler::_compareNick))
+    {
         std::cout << "ERR_NICKNAMEINUSE" << std::endl;
+    }
     else
     {
         _client->setNickname(_cmd.params[0]);
-        std::cout << "Set the nickname successfully: " << _client->getNickname() << std::endl;
+        std::cout << "Set the nickname successfully to: " << _client->getNickname() << std::endl;
     }
 }
 
@@ -118,13 +130,22 @@ void CommandHandler::_handleNick()
 void CommandHandler::_handleUser() // while the NICK command is allowed to change the nickname, can the client change the usernmae and real name?
 {
     if (!_client->isAuthenticated())
+    {
         std::cout << "Client is not authorised. password first." << std::endl;
+    }
     else if (_client->getNickname().empty())
+    {
         std::cout << "Set the Nick first." << std::endl;
-    else if (_cmd.params.empty() || _cmd.trailing.empty()) // it didnt work with empty realname
+    }
+    else if (_cmd.params.empty() || _cmd.trailing.empty()) // empty realname?
+    {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: USER <username> <hostname> <servername> :<realname> or just USER <username> :<realname>" << std::endl;
+    }
     else if (_isNameDublicate(_server, _cmd.params[0], &CommandHandler::_compareUser))
+    {
         std::cout << "ERR_ALREADYREGISTRED" << std::endl;
+    }
     else
     {
         _client->setUsername(_cmd.params[0]);
@@ -171,19 +192,21 @@ void CommandHandler::_handleQuit() // should i check for params?
 void CommandHandler::_handleJoin()
 { // need to add a util that will split a string by commas into vector params
     if (_cmd.params.empty())
+    {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: JOIN <channel>{,<channel>} [<key>{,<key>}]" << std::endl;
+    }
     else if (!_client->isRegistered())
         std::cout << "Client is not registered." << std::endl;
     // validate a channel name
     // ERR_NOSUCHCHANNEL
     else
     {
-        std::cout << "Searching for the channel under the name: " << _cmd.params[0] << std::endl;
-
         std::map<std::string, Channel *>::iterator it = _server->Channels.find(_cmd.params[0]);
 
         if (it == _server->Channels.end())
         {
+            std::cout << "Channel not found - creating a new one: " << _cmd.params[0] << std::endl;
             _server->createChannel(_cmd.params[0]);
             it = _server->Channels.find(_cmd.params[0]);
             it->second->addOperator(_client);
@@ -232,6 +255,7 @@ void CommandHandler::_handleKick()
     if (_cmd.params.size() < 2)
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: KICK <channel> <user> [<comment>]" << std::endl;
         return;
     }
 
@@ -239,14 +263,18 @@ void CommandHandler::_handleKick()
 
     if (!channel)
         std::cout << "ERR_NOSUCHCHANNEL" << std::endl;
+    else if (!channel->hasUser(_client))
+        std::cout << "ERR_NOTONCHANNEL - user trying to kick" << std::endl;
     else if (!channel->isOperator(_client))
         std::cout << "ERR_CHANOPRIVSNEEDED" << std::endl;
     else
     {
         Client *kickedClient = _server->getClient(_cmd.params[1]);
 
+        std::cout << "Client bing kicked nick: " << kickedClient->getNickname() << std::endl;
+
         if (!channel->hasUser(kickedClient))
-            std::cout << "ERR_NOTONCHANNEL" << std::endl;
+            std::cout << "ERR_NOTONCHANNEL - user being kicked" << std::endl;
         else
         {
             std::cout << "Removing the user " << kickedClient->getNickname();
@@ -256,6 +284,7 @@ void CommandHandler::_handleKick()
             }
             std::cout << std::endl;
             channel->removeUser(kickedClient);
+            kickedClient->leaveChannel(channel);
         }
     }
 }
@@ -274,11 +303,15 @@ void CommandHandler::_handleInvite()
     if (_cmd.params.size() < 2)
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: INVITE <nickname> <channel>" << std::endl;
         return;
     }
 
     Channel *channel = _server->getChannel(_cmd.params[1]);
     Client *invitedClient = _server->getClient(_cmd.params[0]);
+
+    std::cout << "The invited client's nickname: " << _cmd.params[0] << std::endl;
+    std::cout << "Found client on the server: " << invitedClient->getNickname() << std::endl;
 
     if (invitedClient)
     {
@@ -299,13 +332,13 @@ void CommandHandler::_handleInvite()
             else
             {
                 std::cout << "RPL_INVITING" << std::endl;
-                _client->addInvited(_cmd.params[0]);
+                _client->addInvited(_cmd.params[1]);
             }
         }
         else
         {
             std::cout << "RPL_INVITING" << std::endl;
-            _client->addInvited(_cmd.params[0]);
+            _client->addInvited(_cmd.params[1]);
         }
     }
     else
@@ -327,6 +360,7 @@ void CommandHandler::_handleTopic()
     if (_cmd.params.empty())
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: TOPIC <channel> [:<topic>]" << std::endl;
         return;
     }
 
@@ -362,27 +396,45 @@ void CommandHandler::_handleTopic()
 void CommandHandler::_modeInvite(Channel *channel, int signIsPositive) // do i need to check if its already invite-only?
 {
     if (signIsPositive)
+    {
         channel->setInviteMode(true);
+        std::cout << "Set invite-only mode in the channel " << channel->getName() << std::endl;
+    }
     else
+    {
         channel->setInviteMode(false);
+        std::cout << "Removed invite-only mode from the channel " << channel->getName() << std::endl;
+    }
 }
 
 // t - set the restrictions on the topic modification
 void CommandHandler::_modeTopic(Channel *channel, int signIsPositive)
 {
     if (signIsPositive)
+    {
         channel->setTopicMode(true);
+        std::cout << "Restricted setting a topic to operators only in the channel " << channel->getName() << std::endl;
+    }
     else
+    {
         channel->setTopicMode(false);
+        std::cout << "Allowed setting a topic to any participants in the channel " << channel->getName() << std::endl;
+    }
 }
 
 // k - set a channel key (password)
 void CommandHandler::_modeKey(Channel *channel, int signIsPositive) // what if key is already set? we change?
 {
     if (signIsPositive)
+    {
         channel->setKey(_cmd.params[2]);
+        std::cout << "Set a password for the channel " << channel->getName() << std::endl;
+    }
     else
+    {
         channel->removeKey();
+        std::cout << "Removed a password for the channel " << channel->getName() << std::endl;
+    }
 }
 
 // o - set channel operator privilege
@@ -399,28 +451,36 @@ void CommandHandler::_modeOperator(Channel *channel, int signIsPositive)
 // l - set the user limit to channel
 void CommandHandler::_modeLimit(Channel *channel, int signIsPositive) // do we restrict this?
 {
-    std::cout << "passing to the setLimit(): " << _cmd.params[2] << "\nAfter conversion: " << strtoul(_cmd.params[2].c_str(), NULL, 10) << std::endl;
     if (signIsPositive)
     {
         if (_cmd.params.size() < 3)
+        {
             std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        }
         else
         {
             unsigned long n = strtoul(_cmd.params[2].c_str(), NULL, 10);
+
             if (n == 0 || n == ULONG_MAX || errno == ERANGE || n > UINT_MAX)
+            {
                 std::cout << "Enter a valid number. Must be greater than 0 and smaller than " << UINT_MAX << std::endl;
+            }
             else
+            {
                 channel->setLimit(static_cast<unsigned int>(n));
+                std::cout << "Set a user limit in the channel " << channel->getName() << " to " << n << std::endl;
+            }
         }
     }
     else
+    {
         channel->removeLimit();
+        std::cout << "Remove a user limit from the channel " << channel->getName() << std::endl;
+    }
 }
 
 int _identifySign(char sign)
 {
-    std::cout << "identifySign received the following character: " << sign << std::endl;
-
     if (sign == '+')
         return ENABLE;
     else if (sign == '-')
@@ -453,9 +513,10 @@ void CommandHandler::_init_modes()
 */
 void CommandHandler::_handleMode() // do we handle multiple modes in one command?
 {
-    if (_cmd.params.empty())
+    if (_cmd.params.size() < 2)
     {
         std::cout << "ERR_NEEDMOREPARAMS" << std::endl;
+        std::cout << "Use: MODE <channel> {[+|-]|o|i|t|l|k} [<limit>] [<user>]" << std::endl;
         return;
     }
 
@@ -465,26 +526,26 @@ void CommandHandler::_handleMode() // do we handle multiple modes in one command
     {
         if (!channel->isOperator(_client))
         {
-            std::cout << "The client trying to change the mode is not an operator. Not allowed." << std::endl;
-            return;
-        }
-        int sign = _identifySign(_cmd.params[1][0]);
-
-        if (_cmd.params[1].length() >= 2 && sign != INVALID)
-        {
-            std::cout << "the mode aka _cmd.params[1]: " << _cmd.params[1] << std::endl;
-
-            _init_modes();
-
-            std::map<char, modeFunc>::iterator it = _modes.find(_cmd.params[1][1]);
-
-            if (it == _modes.end())
-                std::cout << "No such mode." << std::endl;
-            else
-                (this->*it->second)(channel, sign);
+            std::cout << "ERR_CHANOPRIVSNEEDED" << std::endl;
         }
         else
-            std::cout << "Wrong format of the parameter." << std::endl;
+        {
+            int sign = _identifySign(_cmd.params[1][0]);
+
+            if (_cmd.params[1].length() >= 2 && sign != INVALID)
+            {
+                _init_modes();
+
+                std::map<char, modeFunc>::iterator it = _modes.find(_cmd.params[1][1]);
+
+                if (it == _modes.end())
+                    std::cout << "No such mode." << std::endl;
+                else
+                    (this->*it->second)(channel, sign);
+            }
+            else
+                std::cout << "Wrong format of the parameter." << std::endl;
+        }
     }
     else
         std::cout << "ERR_NOTONCHANNEL or no such channel exists." << std::endl; // probbaly need to separate these two errors

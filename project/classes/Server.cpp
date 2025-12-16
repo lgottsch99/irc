@@ -467,7 +467,6 @@ void Server::createChannel(const std::string &name)
 {
     Channel *channel = new Channel(name);
     Channels.insert(std::make_pair(name, channel));
-    std::cout << "Created a channel: " << name << std::endl;
 }
 
 void Server::removeChannel(const std::string &name)

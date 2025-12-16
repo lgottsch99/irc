@@ -92,15 +92,14 @@ void Channel::setTopic(const std::string &topic)
 
 void Channel::setKey(const std::string &key) // what if the key is already set?
 {
-    _mode_k = true;
     _key = key;
+    _mode_k = true;
 }
 
 void Channel::setLimit(unsigned int n)
 {
-    std::cout << "Received number in setLimit(): " << n << std::endl;
-    _mode_l = true;
     _userLimit = n;
+    _mode_l = true;
 }
 
 void Channel::setInviteMode(bool v)
@@ -115,14 +114,14 @@ void Channel::setTopicMode(bool v)
 
 void Channel::removeKey(void)
 {
-    _mode_k = false;
     _key.clear();
+    _mode_k = false;
 }
 
 void Channel::removeLimit(void)
 {
-    _mode_l = false;
     _userLimit = 0;
+    _mode_l = false;
 }
 
 // ---------------- Constructors ----------------
