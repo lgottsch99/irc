@@ -71,6 +71,12 @@ void Client::leaveChannel(Channel *channel)
 	_channels.erase(channel);
 }
 
+std::string Client::getNickname()
+{
+	return _nickname;
+}
+
+
 // ---------------- Constructors ----------------
 
 Client::Client(void)

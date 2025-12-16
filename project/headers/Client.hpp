@@ -17,6 +17,7 @@ class Client {
         std::string _nickname;
         std::string _username;
         std::string _realname;
+        // hostname?
 
         std::set<Channel*> _channels; // Channels the client has joined
 
@@ -27,6 +28,7 @@ class Client {
         std::string  getNickname(void) const;
         std::string  getUsername(void) const;
         std::string  getRealname(void) const;
+        // getHostname?
 
         bool isAuthenticated(void) const;
         bool isRegistered(void) const;
@@ -40,6 +42,7 @@ class Client {
         void setRealname(const std::string &);
         void setAuthenticated(bool v);
         void setRegistered(bool v);
+        std::string getNickname();
 
         // void appendToRecvBuffer(const std::string&);
         // void appendToSendBuffer(const std::string&);
