@@ -43,9 +43,6 @@ private:
 	void _receive_data(int client_fd);
 	void _sendMsgBuf(pollfd* pfd);
 	
-	void _sendNumeric(Client&, Numeric, const std::vector<std::string>&, const std::string& );
-	void broadcastFromUser(const Client&, const std::string&, const std::vector<std::string>&, const std::string&, const Channel& );
-
 	std::vector<int> _clients_to_disconnect; //tracker of fd of client that has some error
 	
 	void _disconnect_clients(void);
@@ -67,6 +64,9 @@ public:
     void removeChannel(const std::string&);
 	Channel *getChannel(const std::string&);
 	Client *getClient(const std::string&);
+
+	void sendNumeric(Client* c, Numeric code, const std::vector<std::string>&params, const std::string& trailing);
+	void _broadcastFromUser(const Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 
 	static void SignalHandler(int signum);
 

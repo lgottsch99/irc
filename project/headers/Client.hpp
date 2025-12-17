@@ -37,6 +37,7 @@ class Client {
 	    bool hasChannel(Channel*) const;
         void addToChannel(Channel*);
         void leaveChannel(Channel*);
+        std::set<Channel*> getChannels() const;
 
         void setNickname(const std::string &);
         void setUsername(const std::string &);
