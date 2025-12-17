@@ -225,7 +225,8 @@ void Server::_receive_data(int fd)
                 printIrcMessage(message);
 
                 // PASS to HANDLER
-                CommandHandler::handleCmd(this, it->second, message);
+                CommandHandler handler(this, it->second, message);
+                handler.handleCmd();
             }
             else // TODO test
             {
@@ -285,7 +286,7 @@ void Server::_sendMsgBuf(pollfd *pfd)
     -> closes all existing socket connections
     ->clears ALL Clients & data
 */
-void Server::shutdown(void)
+void Server::shutdown(void) // + delete channels
 {
     // TODO
     // close existing connections?
@@ -458,4 +459,37 @@ std::string Server::getPassword(void) const
 void Server::setPass(std::string pass)
 {
     _password = pass;
+}
+
+// CHANNEL OPERATIONS
+
+void Server::createChannel(const std::string &name)
+{
+    Channel *channel = new Channel(name);
+    Channels.insert(std::make_pair(name, channel));
+}
+
+void Server::removeChannel(const std::string &name)
+{
+    std::map<std::string, Channel *>::iterator it = Channels.find(name);
+    delete it->second;
+    Channels.erase(it);
+}
+
+Channel *Server::getChannel(const std::string &name)
+{
+    std::map<std::string, Channel *>::iterator it = Channels.find(name);
+    if (it == Channels.end())
+        return NULL;
+    return it->second;
+}
+
+Client* Server::getClient(const std::string& nick)
+{
+    for (std::map<int, Client *>::iterator it = Clients.begin(); it != Clients.end(); ++it)
+    {
+        if (it->second && !it->second->getNickname().compare(nick))
+            return it->second;
+    }
+    return NULL;
 }

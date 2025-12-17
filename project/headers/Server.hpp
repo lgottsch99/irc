@@ -20,6 +20,7 @@
 #include "Client.hpp"
 #include "Parser.hpp"
 #include "CommandHandler.hpp"
+#include "Channel.hpp"
 //todo incl handling headers
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?
@@ -54,7 +55,14 @@ public:
     std::map<int, Client*> Clients;
 
     // Name → Channel object
-    //std::map<std::string, Channel*> Channels;
+    std::map<std::string, Channel*> Channels;
+	/* The channel is created implicitly when
+	the first client joins it, and the channel ceases to
+   	exist when the last client leaves it. */
+	void createChannel(const std::string&); // i allocate, needs freeing somewhere
+    void removeChannel(const std::string&);
+	Channel *getChannel(const std::string&);
+	Client *getClient(const std::string&);
 
 	static void SignalHandler(int signum);
 

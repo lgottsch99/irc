@@ -10,7 +10,7 @@ CLASSFILES =	classes/Client.cpp \
 				classes/CommandHandler.cpp \
 				classes/Server.cpp \
 				classes/Parser.cpp \
-# 				classes/Channel.cpp \
+				classes/Channel.cpp \
 
 SRC = main.cpp $(CLASSFILES)
 

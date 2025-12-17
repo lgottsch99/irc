@@ -3,9 +3,11 @@
 
 #include <iostream>
 #include <string>
-// #include <set>
+#include <set>
 
-// class Channel;
+// #include "Channel.hpp"
+
+class Channel;
 
 class Client {
     private:
@@ -16,7 +18,8 @@ class Client {
         std::string _username;
         std::string _realname;
 
-        // std::set<Channel*> _channels; // Channels the client has joined
+        std::set<Channel*> _channels; // Channels the client has joined
+        std::set<std::string> _invitedChannelNames; // must store names because IRC allowed to invite an user to an non-existent channel
 
     public:
         Client(void);
@@ -28,6 +31,10 @@ class Client {
 
         bool isAuthenticated(void) const;
         bool isRegistered(void) const;
+        
+	    bool hasChannel(Channel*) const;
+        void addToChannel(Channel*);
+        void leaveChannel(Channel*);
 
         void setNickname(const std::string &);
         void setUsername(const std::string &);
@@ -35,12 +42,14 @@ class Client {
         void setAuthenticated(bool v);
         void setRegistered(bool v);
 
+        void addInvited(const std::string& channelName);
+        void removeInvited(const std::string& channelName);
+        bool isInvited(std::string channel);
+
         // void appendToRecvBuffer(const std::string&);
         // void appendToSendBuffer(const std::string&);
         // void clearRecvBuffer();
         // void clearSendBuffer();
-        // void addChannel(Channel*);
-        // void removeChannel(Channel*);
 
         // for Lilli
         int fd;                 // client socket fd. needed by server
