@@ -21,6 +21,7 @@
 #include "Parser.hpp"
 #include "CommandHandler.hpp"
 #include "Channel.hpp"
+#include "NumericReplies.hpp"
 //todo incl handling headers
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?
@@ -41,6 +42,9 @@ private:
 	void _accept_new_client(void);
 	void _receive_data(int client_fd);
 	void _sendMsgBuf(pollfd* pfd);
+	
+	void _sendNumeric(Client&, Numeric, const std::vector<std::string>&, const std::string& );
+	void broadcastFromUser(const Client&, const std::string&, const std::vector<std::string>&, const std::string&, const Channel& );
 
 	std::vector<int> _clients_to_disconnect; //tracker of fd of client that has some error
 	

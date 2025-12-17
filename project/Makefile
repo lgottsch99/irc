@@ -11,6 +11,7 @@ CLASSFILES =	classes/Client.cpp \
 				classes/Server.cpp \
 				classes/Parser.cpp \
 				classes/Channel.cpp \
+				classes/ServerResponse.cpp \
 
 SRC = main.cpp $(CLASSFILES)
 

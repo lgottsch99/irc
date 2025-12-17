@@ -2,6 +2,7 @@
 #define COMMANDHANDLER_HPP
 
 #include "Server.hpp"
+#define NICK_MAX 30
 
 #define DISABLE 0
 #define ENABLE 1
@@ -54,6 +55,7 @@ class CommandHandler {
 		bool _compareUser(Client *client, const std::string &name);
 
 		void _init_modes();
+		bool _checkNickChars(const std::string &name);
 
 	public:
 		CommandHandler();
