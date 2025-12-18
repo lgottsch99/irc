@@ -2,6 +2,7 @@
 #define COMMANDHANDLER_HPP
 
 #include "Server.hpp"
+#include <climits>
 
 #define NICK_MAX 30
 
@@ -60,7 +61,7 @@ class CommandHandler	{
 		bool _compareNick(Client *client, const std::string &name);
 		static bool _checkNickChars(const std::string &name);
 		bool _compareUser(Client *client, const std::string &name);
-		bool _checkNickChars(const std::string &name);
+		// bool _checkNickChars(const std::string &name);
 
 		bool _tryRegister();
 		void _sendToAllChannels(const std::string &trailing);
