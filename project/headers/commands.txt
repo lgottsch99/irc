@@ -1,0 +1,37 @@
+Commands
+
+* PASS 
+* NICK
+* USER
+* PING
+* PONG
+* QUIT
+* (WHOIS (irssi would like to use it during auth, but maybe we can ignore)
+WHOIS <target>{,<target>}
+WHOIS nick1,nick2
+
+Messaging (both in eval sheet!)
+
+* PRIVMSG
+* NOTICE
+
+Channels
+
+* JOIN <channel>{,<channel>} [<key>{,<key>}]
+JOIN #a,#b key1,key2
+
+* PART
+
+* MODE <channel> <modes> [<mode params>]
+MODE #chan +oo nick1,nick2
+MODE #chan +b mask1,mask2
+
+* TOPIC
+
+* INVITE <nickname>{,<nickname>} <channel>
+INVITE nick1,nick2 #chan
+
+* KICK <channel>{,<channel>} <user>{,<user>} [<comment>]
+KICK #a,#b user1,user2
+KICK #chan user1,user2 :bye
+
