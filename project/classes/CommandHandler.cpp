@@ -319,27 +319,25 @@ void CommandHandler::_handleInvite()
 
         if (!invitedClient)
             _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
-        else if (!channel)
+        if (channel)
         {
-            std::cout << "RPL_INVITING" << std::endl; // what if the client that invites to a future channel is not going to be an operator
-            _client->addInvited(_cmd.params[1]);
-        }
-        else if (channel->isInviteOnly() && !channel->isOperator(_client))
-        {
-            _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
-        }
-        else if (!channel->hasUser(_client))
-        {
-            _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
-        }
-        else if (channel->hasUser(invitedClient))
-        {
-            _server->sendNumeric(_client, ERR_USERONCHANNEL, _cmd.params, "is already on channel");
+            if (!channel->hasUser(_client))
+            {
+                _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
+            }
+            else if (channel->isInviteOnly() && !channel->isOperator(_client))
+            {
+                _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
+            }
+            else if (channel->hasUser(invitedClient))
+            {
+                _server->sendNumeric(_client, ERR_USERONCHANNEL, _cmd.params, "is already on channel");
+            }
         }
         else
         {
-            std::cout << "RPL_INVITING" << std::endl;
-            _client->addInvited(_cmd.params[1]);
+            _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
+            invitedClient->addInvited(_cmd.params[1]);
         }
     }
 }
@@ -357,37 +355,31 @@ void CommandHandler::_handleInvite()
 void CommandHandler::_handleTopic()
 {
     if (_cmd.params.empty())
-    {
         _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
-
-        return;
-    }
-
-    Channel *channel = _server->getChannel(_cmd.params[0]);
-
-    if (channel && _client->hasChannel(channel))
+    else
     {
-        if (channel->isTopicRestricted() && !channel->isOperator(_client))
-            _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
+        Channel *channel = _server->getChannel(_cmd.params[0]);
 
+        if (!channel)
+            _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
+        else if (!_client->hasChannel(channel))
+            _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
+        else if (_cmd.trailing.empty())
+        {
+            if (channel->getTopic().empty())
+                _server->sendNumeric(_client, RPL_NOTOPIC, _cmd.params, "No topic is set");
+            else
+                _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, channel->getTopic());
+        }
+        else if (channel->isTopicRestricted() && !channel->isOperator(_client))
+            _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
         else
         {
-            if (!_cmd.trailing.empty()) // only trailing or a param too?
-            {
-                std::cout << "Setting the topic to a new one: " << _cmd.trailing << std::endl;
-                channel->setTopic(_cmd.trailing);
-            }
-            else
-            {
-                if (channel->getTopic().empty())
-                    std::cout << "RPL_NOTOPIC" << std::endl;
-                else
-                    std::cout << "RPL_TOPIC: " << channel->getTopic() << std::endl;
-            }
+            std::cout << "Setting the topic to a new one: " << _cmd.trailing << std::endl;
+            //     sendToChannel(_cmd.trailing);
+            channel->setTopic(_cmd.trailing);
         }
     }
-    else
-        std::cout << "ERR_NOTONCHANNEL or no such channel exists." << std::endl;
 }
 
 // ---------------- MODES ----------------
@@ -425,15 +417,20 @@ void CommandHandler::_modeTopic(Channel *channel, int signIsPositive)
 // k - set a channel key (password)
 void CommandHandler::_modeKey(Channel *channel, int signIsPositive) // what if key is already set? we change?
 {
-    if (signIsPositive)
-    {
-        channel->setKey(_cmd.params[2]);
-        std::cout << "Set a password for the channel " << channel->getName() << std::endl;
-    }
+    if (channel->hasKey())
+        _server->sendNumeric(_client, ERR_KEYSET, _cmd.params, "Channel key already set");
     else
     {
-        channel->removeKey();
-        std::cout << "Removed a password for the channel " << channel->getName() << std::endl;
+        if (signIsPositive)
+        {
+            channel->setKey(_cmd.params[2]);
+            std::cout << "Set a password for the channel " << channel->getName() << std::endl;
+        }
+        else
+        {
+            channel->removeKey();
+            std::cout << "Removed a password for the channel " << channel->getName() << std::endl;
+        }
     }
 }
 
@@ -449,27 +446,22 @@ void CommandHandler::_modeOperator(Channel *channel, int signIsPositive)
 }
 
 // l - set the user limit to channel
-void CommandHandler::_modeLimit(Channel *channel, int signIsPositive) // do we restrict this?
+void CommandHandler::_modeLimit(Channel *channel, int signIsPositive)
 {
-    if (signIsPositive)
+    if (_cmd.params.size() < 3)
+        _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
+    else if (signIsPositive)
     {
-        if (_cmd.params.size() < 3)
+        unsigned long n = strtoul(_cmd.params[2].c_str(), NULL, 10);
+
+        if (n == 0 || n == ULONG_MAX || errno == ERANGE || n > UINT_MAX)
         {
-            _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
+            std::cout << "Enter a valid number. Must be greater than 0 and smaller than " << UINT_MAX << std::endl;
         }
         else
         {
-            unsigned long n = strtoul(_cmd.params[2].c_str(), NULL, 10);
-
-            if (n == 0 || n == ULONG_MAX || errno == ERANGE || n > UINT_MAX)
-            {
-                std::cout << "Enter a valid number. Must be greater than 0 and smaller than " << UINT_MAX << std::endl;
-            }
-            else
-            {
-                channel->setLimit(static_cast<unsigned int>(n));
-                std::cout << "Set a user limit in the channel " << channel->getName() << " to " << n << std::endl;
-            }
+            channel->setLimit(static_cast<unsigned int>(n));
+            std::cout << "Set a user limit in the channel " << channel->getName() << " to " << n << std::endl;
         }
     }
     else
@@ -501,23 +493,20 @@ void CommandHandler::_init_modes()
         std::string argument;   // empty if not required
     };
 */
-void CommandHandler::_handleMode() // do we handle multiple modes in one command?
+void CommandHandler::_handleMode()
 {
     if (_cmd.params.size() < 2)
-    {
         _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
-
-        return;
-    }
-
-    Channel *channel = _server->getChannel(_cmd.params[0]);
-
-    if (channel && _client->hasChannel(channel))
+    else
     {
-        if (!channel->isOperator(_client))
-        {
+        Channel *channel = _server->getChannel(_cmd.params[0]);
+
+        if (!channel)
+            _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
+        else if (!_client->hasChannel(channel))
+            _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
+        else if (!channel->isOperator(_client))
             _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
-        }
         else
         {
             int sign = _identifySign(_cmd.params[1][0]);
@@ -525,20 +514,17 @@ void CommandHandler::_handleMode() // do we handle multiple modes in one command
             if (_cmd.params[1].length() >= 2 && sign != INVALID)
             {
                 _init_modes();
-
                 std::map<char, modeFunc>::iterator it = _modes.find(_cmd.params[1][1]);
 
                 if (it == _modes.end())
-                    std::cout << "No such mode." << std::endl;
+                    _server->sendNumeric(_client, ERR_UMODEUNKNOWNFLAG, _cmd.params, "Unknown MODE flag");
                 else
                     (this->*it->second)(channel, sign);
             }
             else
-                std::cout << "Wrong format of the parameter." << std::endl;
+                _server->sendNumeric(_client, ERR_UNKNOWNMODE, _cmd.params, "is unknown mode char to me");
         }
     }
-    else
-        std::cout << "ERR_NOTONCHANNEL or no such channel exists." << std::endl; // probbaly need to separate these two errors
 }
 
 // ---------------- Utils ----------------
