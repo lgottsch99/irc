@@ -225,7 +225,8 @@ void Server::_receive_data(int fd)
                 printIrcMessage(message);
 
                 // PASS to HANDLER
-                CommandHandler::handleCmd(this, it->second, message);
+                CommandHandler handler(this, it->second, message);
+                handler.handleCmd();
             }
             else // TODO test
             {
@@ -466,7 +467,6 @@ void Server::createChannel(const std::string &name)
 {
     Channel *channel = new Channel(name);
     Channels.insert(std::make_pair(name, channel));
-    std::cout << "Created a channel: " << name << std::endl;
 }
 
 void Server::removeChannel(const std::string &name)
@@ -482,4 +482,14 @@ Channel *Server::getChannel(const std::string &name)
     if (it == Channels.end())
         return NULL;
     return it->second;
+}
+
+Client* Server::getClient(const std::string& nick)
+{
+    for (std::map<int, Client *>::iterator it = Clients.begin(); it != Clients.end(); ++it)
+    {
+        if (it->second && !it->second->getNickname().compare(nick))
+            return it->second;
+    }
+    return NULL;
 }

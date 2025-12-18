@@ -20,6 +20,7 @@ class Client {
         // hostname?
 
         std::set<Channel*> _channels; // Channels the client has joined
+        std::set<std::string> _invitedChannelNames; // must store names because IRC allowed to invite an user to an non-existent channel
 
     public:
         Client(void);
@@ -43,6 +44,10 @@ class Client {
         void setAuthenticated(bool v);
         void setRegistered(bool v);
         std::string getNickname();
+
+        void addInvited(const std::string& channelName);
+        void removeInvited(const std::string& channelName);
+        bool isInvited(std::string channel);
 
         // void appendToRecvBuffer(const std::string&);
         // void appendToSendBuffer(const std::string&);

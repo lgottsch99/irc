@@ -1,7 +1,6 @@
 #ifndef COMMANDHANDLER_HPP
 #define COMMANDHANDLER_HPP
 
-#include <string>
 #include "Server.hpp"
 #define NICK_MAX 30
 
@@ -15,48 +14,55 @@
 	3. merge nickname validation
 	4. format messages correctly for the replyToClient
 	5. actually send responses to the server
-	6. implement commands: TOPIC, INVITE, KICK
+	✅ 6. implement commands: TOPIC, INVITE, KICK
 	7. test MODE command
+	8. Parse MODE commands / handle multiple modes
+	9. clean up the code
 */
 
 class Server;
 
 class CommandHandler {
 	private:
-		typedef void (*handlerFunc)(Server* server, Client *client, const IrcMessage &cmd);
-		typedef void (*modeFunc)(const IrcMessage &cmd, Channel *channel, int sign);
+		Server*		_server;
+		Client*		_client;
+		IrcMessage	_cmd;
 
-		static std::map<std::string, handlerFunc> _handlers;
+		typedef void (CommandHandler::*handlerFunc)(void);
+		typedef void (CommandHandler::*modeFunc)(Channel *channel, int sign);
 
-		// static std::map<char, > _modes;
+		std::map<std::string, handlerFunc>	_handlers;
+        std::map<char, modeFunc>			_modes;
 
-		static void _handlePass(Server* server, Client *client, const IrcMessage &cmd);
-		static void _handleNick(Server* server, Client *client, const IrcMessage &cmd);
-		static void _handleUser(Server* server, Client *client, const IrcMessage &cmd);
-		static void _handleQuit(Server *server, Client *client, const IrcMessage &cmd);
-		// static void _handleOper(Server *server, Client *client, const IrcMessage &cmd);
+		void _handlePass();
+		void _handleNick();
+		void _handleUser();
+		void _handleQuit();
+		void _handleJoin();
+		void _handleMode();
+		void _handleTopic();
+		void _handleInvite();
+		void _handleKick();
 
-		static void _handleJoin(Server *server, Client *client, const IrcMessage &cmd);
-		static void _handleMode(Server *server, Client *client, const IrcMessage &cmd);
-		static void _handleTopic(Server *server, Client *client, const IrcMessage &cmd);
-		static void _handleInvite(Server *server, Client *client, const IrcMessage &cmd);
-		static void _handleKick(Server *server, Client *client, const IrcMessage &cmd);
+		void _modeInvite(Channel *channel, int signIsPositive);
+		void _modeKey(Channel *channel, int signIsPositive);
+		void _modeLimit(Channel *channel, int signIsPositive);
+		void _modeTopic(Channel *channel, int signIsPositive);
+		void _modeOperator(Channel *channel, int signIsPositive);
 
-		static bool _isNameDublicate(Server *server, std::string name, bool (*compareFunc)(Client*, const std::string&));
-		static bool _compareNick(Client *client, const std::string &name);
+		bool _isNameDublicate(Server *server, std::string name, bool (CommandHandler::*compareFunc)(Client*, const std::string&));
+		bool _compareNick(Client *client, const std::string &name);
 		static bool _checkNickChars(const std::string &name);
-		static bool _compareUser(Client *client, const std::string &name);
-		// static void	_handleModesUtil(const std::vector<std::string> &params, Channel *channel);
+		bool _compareUser(Client *client, const std::string &name);
 
-		static void _modeInvite(const IrcMessage &cmd, Channel*, int);
-		static void _modeKey(const IrcMessage &cmd, Channel*, int);
-		static void _modeLimit(const IrcMessage &cmd, Channel*, int);
+		void _init_modes();
 
 	public:
-		CommandHandler(void);
-		~CommandHandler(void);
+		CommandHandler();
+		CommandHandler(Server* server, Client* client, const IrcMessage &cmd);
+		~CommandHandler();
 
-		static void handleCmd(Server* server, Client* client, const IrcMessage& cmd); // client* here is the client that sent the command
+		void handleCmd(); // client* here is the client that sent the command
 		
 		// void sendToChannel(const std::string& channelName, const std::string& msg, Client* exceptClient);
 		// void sendToClient(int fd, const std::string& msg); // internally forwards the msg to server:  server->send_response(fd, msg);
