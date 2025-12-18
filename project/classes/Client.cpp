@@ -61,6 +61,13 @@ bool Client::hasChannel(Channel *channel) const
 	return false;
 }
 
+std::set<Channel*> Client::getChannels() const
+{
+	return _channels;
+}
+
+//
+
 void Client::addToChannel(Channel *channel)
 {
 	_channels.insert(channel);
