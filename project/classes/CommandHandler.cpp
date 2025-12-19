@@ -603,16 +603,20 @@ void CommandHandler::_handleMode()
         else
         {
             // modify this to read more modes
-            t_mode mode = _parseMode(_cmd);
-            // t_mode_vect modes = _parseMode(_cmd);
+            // t_mode mode = _parseMode(_cmd);
+            t_mode_vect modes = _parseMode(_cmd);
 
             _init_modes();
-            std::map<char, modeFunc>::iterator it = _modes.find(mode.mode);
+            for (size_t i = 0; i < modes.size(); i++)
+            {
+                std::map<char, modeFunc>::iterator it = _modes.find(modes[i].mode);
 
-            if (it == _modes.end())
-                _server->sendNumeric(_client, ERR_UNKNOWNMODE, _cmd.params, "is unknown mode char to me");
-            else
-                (this->*it->second)(channel, mode);
+                if (it == _modes.end())
+                    _server->sendNumeric(_client, ERR_UNKNOWNMODE, _cmd.params, "is unknown mode char to me");
+                else
+                    (this->*it->second)(channel, modes[i]);
+            }
+            
         }
     }
 }
