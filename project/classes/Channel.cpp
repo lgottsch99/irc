@@ -3,6 +3,17 @@
 
 // ---------------- Member Functions ----------------
 
+// void Server::replyToClient(Client *client, const std::string &msg);
+
+// void Channel::sendToAll(const std::string &msg, Client *sender)
+// {
+//     std::set<Client*>::iterator it = _users.begin();
+
+//     for (it; it != _users.end(); ++it){
+
+//     }
+// }
+
 // ---------------- Operations with users ----------------
 
 bool Channel::hasUser(Client *client) const
@@ -82,6 +93,16 @@ bool Channel::hasKey(void) const
     return _mode_k;
 }
 
+std::set<Client *> Channel::getUsers() const
+{
+    return _users;
+}
+
+std::set<Client *> Channel::getOperators() const
+{
+    return _operators;
+}
+
 // ---------------- Setters + Modes ----------------
 
 void Channel::setTopic(const std::string &topic)
@@ -90,7 +111,7 @@ void Channel::setTopic(const std::string &topic)
     _mode_t = true;
 }
 
-void Channel::setKey(const std::string &key) // what if the key is already set?
+void Channel::setKey(const std::string &key)
 {
     _key = key;
     _mode_k = true;
@@ -126,12 +147,16 @@ void Channel::removeLimit(void)
 
 // ---------------- Constructors ----------------
 
-Channel::Channel(void) : _name("")
+Channel::Channel(void)
+    : _name(""), _topic(""), _key(""), _userLimit(0),
+      _mode_i(false), _mode_t(false), _mode_k(false), _mode_l(false)
 {
     std::cout << "(Channel) Default constructor\n";
 }
 
-Channel::Channel(const std::string &name) : _name(name)
+Channel::Channel(const std::string &name)
+    : _name(name), _topic(""), _key(""), _userLimit(0),
+      _mode_i(false), _mode_t(false), _mode_k(false), _mode_l(false)
 {
     std::cout << "(Channel) Overload constructor\n";
 }

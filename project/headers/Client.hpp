@@ -12,12 +12,11 @@ class Channel;
 class Client {
     private:
         bool _authenticated; // PASS ok
-        bool _registered;    // NICK+USER completed, WELCOME sent
+        bool _registered;    // NICK+USER+PASS completed, WELCOME sent
 
         std::string _nickname;
         std::string _username;
         std::string _realname;
-        // hostname?
 
         std::set<Channel*> _channels; // Channels the client has joined
         std::set<std::string> _invitedChannelNames; // must store names because IRC allowed to invite an user to an non-existent channel
@@ -29,7 +28,6 @@ class Client {
         std::string  getNickname(void) const;
         std::string  getUsername(void) const;
         std::string  getRealname(void) const;
-        // getHostname?
 
         bool isAuthenticated(void) const;
         bool isRegistered(void) const;
@@ -48,11 +46,6 @@ class Client {
         void addInvited(const std::string& channelName);
         void removeInvited(const std::string& channelName);
         bool isInvited(std::string channel);
-
-        // void appendToRecvBuffer(const std::string&);
-        // void appendToSendBuffer(const std::string&);
-        // void clearRecvBuffer();
-        // void clearSendBuffer();
 
         // for Lilli
         int fd;                 // client socket fd. needed by server

@@ -66,13 +66,16 @@ public:
 	Client *getClient(const std::string&);
 
 	void sendNumeric(Client* c, Numeric code, const std::vector<std::string>&params, const std::string& trailing);
-	void _broadcastFromUser(const Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
+	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
+	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
+	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK
+	// void removeClientFromChannels();
 
 	static void SignalHandler(int signum);
 
     void init(char *argv[]);
     void pollLoop();
-	void shutdown(void);
+	void shutdown(void); // add delete channels
 
 	//INTERFACE handler -> server for disconnecting a client 
 	void markClientToDisconnect(int client_fd);
