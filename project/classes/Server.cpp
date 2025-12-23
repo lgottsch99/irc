@@ -493,3 +493,7 @@ Client* Server::getClient(const std::string& nick)
     }
     return NULL;
 }
+
+// void Server::removeClientFromChannels(){
+    
+// }

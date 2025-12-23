@@ -15,9 +15,6 @@ void CommandHandler::handleCmd()
         std::cout << "Command recognised and going to the execution." << std::endl;
         (this->*it->second)();
     }
-
-    // correctlyFormattedMessage = formatMsg(someMessage);
-    // server->replyToClient(client, correctlyFormattedMessage);
 }
 
 // void CommandHandler::sendToChannel(const std::string &channelName, const std::string &msg, Client *exceptClient)
@@ -88,7 +85,7 @@ void CommandHandler::_handleNick() // no numeric on success
     else
     {
         if (!_client->getNickname().empty())
-            _sendToAllChannels("User changed their nickname");
+            _server->broadcastToAllChannels("User changed their nickname", _client);
         _client->setNickname(_cmd.params[0]);
         std::cout << "Set the nickname successfully to: " << _client->getNickname() << std::endl;
     }
@@ -97,14 +94,6 @@ void CommandHandler::_handleNick() // no numeric on success
         _client->setRegistered(true);
         _server->sendNumeric(_client, RPL_WELCOME, _cmd.params, "Welcome to the server!");
     }
-}
-
-void CommandHandler::_sendToAllChannels(const std::string &trailing)
-{
-    std::set<Channel *> channels = _client->getChannels();
-
-    for (std::set<Channel *>::iterator it = channels.begin(); it != channels.end(); ++it)
-        _server->_broadcastFromUser(_client, _cmd.command, _cmd.params, trailing, *it);
 }
 
 /*
@@ -150,7 +139,9 @@ void CommandHandler::_handleUser()
 void CommandHandler::_handleQuit()
 {
     if (!_cmd.trailing.empty())
-        _sendToAllChannels(_cmd.trailing);
+        _server->broadcastToAllChannels(_cmd.trailing, _client);
+    else
+        _server->broadcastToAllChannels(_client->getNickname() + " left the server.", _client); // left the channel?
     _server->markClientToDisconnect(_client->fd);
 }
 
@@ -191,6 +182,14 @@ void CommandHandler::_handleJoin()
             it->second->addOperator(_client);
             it->second->addUser(_client);
             _client->addToChannel(it->second);
+
+            if (!it->second->getTopic().empty())
+                _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, it->second->getTopic());
+            else
+                _server->sendNumeric(_client, RPL_NOTOPIC, _cmd.params, "No topic is set");
+            // implement NAMES command
+            _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, "nicknames");
+            _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
         }
         else if (!_client->hasChannel(it->second))
         {
@@ -285,11 +284,7 @@ void CommandHandler::_handleKick()
                 _server->sendNumeric(_client, ERR_USERNOTINCHANNEL, _cmd.params, "They aren't on that channel");
             else
             {
-                // if (!_cmd.trailing.empty())
-                //     sendToChannel(_cmd.trailing);
-                // else
-                //     sendToChannel("");
-
+                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
                 channel->removeUser(kickedClient);
                 if (channel->isOperator(kickedClient))
                     channel->removeOperator(kickedClient);
@@ -319,7 +314,7 @@ void CommandHandler::_handleInvite()
 
         if (!invitedClient)
             _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
-        if (channel)
+        else if (channel)
         {
             if (!channel->hasUser(_client))
                 _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
@@ -327,6 +322,8 @@ void CommandHandler::_handleInvite()
                 _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
             else if (channel->hasUser(invitedClient))
                 _server->sendNumeric(_client, ERR_USERONCHANNEL, _cmd.params, "is already on channel");
+            _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
+            invitedClient->addInvited(_cmd.params[1]);
         }
         else
         {
@@ -369,9 +366,90 @@ void CommandHandler::_handleTopic()
             _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
         else
         {
-            std::cout << "Setting the topic to a new one: " << _cmd.trailing << std::endl;
-            //     sendToChannel(_cmd.trailing);
+            _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
             channel->setTopic(_cmd.trailing);
+        }
+    }
+}
+
+/*
+4.4.1 Private messages
+    Command: PRIVMSG <receiver>{,<receiver>} :<text to be sent>
+
+    PRIVMSG is used to send private messages between users.  <receiver>
+    is the nickname of the receiver of the message.  <receiver> can also
+    be a list of names or channels separated with commas.
+
+    Examples:
+        PRIVMSG Angel :yes I'm receiving it !receiving it !'u>(768u+1n) .br
+                                        ; Message to Angel.
+    */
+void CommandHandler::_handlePrivmsg()
+{
+    if (_cmd.params.empty())
+        _server->sendNumeric(_client, ERR_NORECIPIENT, _cmd.params, "No recipient given " + _cmd.command);
+    else
+    {
+        if (_cmd.trailing.empty())
+            _server->sendNumeric(_client, ERR_NOTEXTTOSEND, _cmd.params, "No text to send");
+        else if (_cmd.params[0][0] == '#' || _cmd.params[0][0] == '&')
+        {
+            Channel *channel = _server->getChannel(_cmd.params[0]);
+
+            if (!channel)
+                _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
+            else if (!channel->hasUser(_client))
+                _server->sendNumeric(_client, ERR_CANNOTSENDTOCHAN, _cmd.params, "Cannot send to channel");
+            else
+                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+        }
+        else
+        {
+            Client *recipient = _server->getClient(_cmd.params[0]); // check for dublicate recipients
+
+            if (!recipient)
+                _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
+            else
+                _server->replyToClient(recipient, _cmd.trailing + "\r\n"); // wrong
+        }
+    }
+}
+
+/*
+4.4.2 Notice
+    Command: NOTICE <nickname> :<text>
+
+    The NOTICE message is used similarly to PRIVMSG.  The difference
+    between NOTICE and PRIVMSG is that automatic replies must never be
+    sent in response to a NOTICE message.
+*/
+void CommandHandler::_handleNotice()
+{
+    if (_cmd.params.empty())
+        return;
+    else
+    {
+        if (_cmd.trailing.empty())
+            return;
+        else if (_cmd.params[0][0] == '#' || _cmd.params[0][0] == '&')
+        {
+            Channel *channel = _server->getChannel(_cmd.params[0]);
+
+            if (!channel)
+                return;
+            else if (!channel->hasUser(_client))
+                return;
+            else
+                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+        }
+        else
+        {
+            Client *recipient = _server->getClient(_cmd.params[0]);
+
+            if (!recipient)
+                return;
+            else
+                _server->replyToClient(recipient, _cmd.trailing + "\r\n"); // wrong
         }
     }
 }
@@ -384,14 +462,12 @@ void CommandHandler::_modeInvite(Channel *channel, const t_mode &mode) // do i n
     if (mode.sign == '+')
     {
         channel->setInviteMode(true);
-        //     sendToChannel(_cmd.trailing);
-        std::cout << "Set invite-only mode in the channel " << channel->getName() << std::endl;
+        _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
     }
     else
     {
         channel->setInviteMode(false);
-        //     sendToChannel(_cmd.trailing);
-        std::cout << "Removed invite-only mode from the channel " << channel->getName() << std::endl;
+        _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
     }
 }
 
@@ -401,14 +477,12 @@ void CommandHandler::_modeTopic(Channel *channel, const t_mode &mode)
     if (mode.sign == '+')
     {
         channel->setTopicMode(true);
-        //     sendToChannel(_cmd.trailing);
-        std::cout << "Restricted setting a topic to operators only in the channel " << channel->getName() << std::endl;
+        _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
     }
     else
     {
         channel->setTopicMode(false);
-        //     sendToChannel(_cmd.trailing);
-        std::cout << "Allowed setting a topic to any participants in the channel " << channel->getName() << std::endl;
+        _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
     }
 }
 
@@ -424,15 +498,13 @@ void CommandHandler::_modeKey(Channel *channel, const t_mode &mode)
         else
         {
             channel->setKey(_cmd.params[2]);
-            //     sendToChannel(_cmd.trailing);
-            std::cout << "Set a password for the channel " << channel->getName() << std::endl;
+            _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
         }
     }
     else
     {
         channel->removeKey();
-        //     sendToChannel(_cmd.trailing);
-        std::cout << "Removed a password for the channel " << channel->getName() << std::endl;
+        _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
     }
 }
 
@@ -452,16 +524,14 @@ void CommandHandler::_modeLimit(Channel *channel, const t_mode &mode)
             else
             {
                 channel->setLimit(static_cast<unsigned int>(n));
-                //     sendToChannel(_cmd.trailing);
-                std::cout << "Set a user limit in the channel " << channel->getName() << " to " << n << std::endl;
+                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
             }
         }
     }
     else
     {
         channel->removeLimit();
-        //     sendToChannel(_cmd.trailing);
-        std::cout << "Remove a user limit from the channel " << channel->getName() << std::endl;
+        _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
     }
 }
 
@@ -619,6 +689,22 @@ void CommandHandler::_handleMode()
     }
 }
 
+// ---------------- Connecton check ----------------
+
+void CommandHandler::_handlePing()
+{
+    if (_cmd.params.empty())
+        _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
+    else if (_cmd.params[0].empty())
+        _server->sendNumeric(_client, ERR_NOORIGIN, _cmd.params, "No origin specified");
+    _server->replyToClient(_client, "PONG :" + _cmd.trailing + "\r\n"); // maybe add a function that's like the send numeric but without the numeric?
+}
+
+void CommandHandler::_handlePong()
+{
+    return;
+}
+
 // ---------------- Utils ----------------
 
 bool CommandHandler::_compareNick(Client *client, const std::string &name)
@@ -681,6 +767,10 @@ CommandHandler::CommandHandler(Server *server, Client *client, const IrcMessage 
     _handlers["TOPIC"] = &CommandHandler::_handleTopic;
     _handlers["INVITE"] = &CommandHandler::_handleInvite;
     _handlers["KICK"] = &CommandHandler::_handleKick;
+    _handlers["PING"] = &CommandHandler::_handlePing;
+    _handlers["PONG"] = &CommandHandler::_handlePong;
+    _handlers["NOTICE"] = &CommandHandler::_handleNotice;
+    _handlers["PRIVMSG"] = &CommandHandler::_handlePrivmsg;
 }
 
 CommandHandler::~CommandHandler(void)

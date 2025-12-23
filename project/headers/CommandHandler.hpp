@@ -49,6 +49,10 @@ class CommandHandler	{
 		void _handleTopic();
 		void _handleInvite();
 		void _handleKick();
+		void _handlePing();
+		void _handlePong();
+		void _handleNotice();
+		void _handlePrivmsg();
 
 		void _modeInvite(Channel *channel, const t_mode &mode);
 		void _modeKey(Channel *channel, const t_mode &mode);
@@ -68,7 +72,6 @@ class CommandHandler	{
 		// bool _checkNickChars(const std::string &name);
 
 		bool _tryRegister();
-		void _sendToAllChannels(const std::string &trailing);
 
 	public:
 		CommandHandler();
