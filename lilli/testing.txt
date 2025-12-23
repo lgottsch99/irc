@@ -1,0 +1,4 @@
+/JOIN (to create a channel)
+When creating a new channel for the first time, the nc gets the following response:
+:ft_irc 403 * #cha :No such channel 
+This does not happen for the second time or when creating another new channel. The channel is created correctly and the user is added to it.

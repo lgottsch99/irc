@@ -602,8 +602,6 @@ void CommandHandler::_handleMode()
             _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
         else
         {
-            // modify this to read more modes
-            // t_mode mode = _parseMode(_cmd);
             t_mode_vect modes = _parseMode(_cmd);
 
             _init_modes();
