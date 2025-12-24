@@ -679,7 +679,7 @@ void CommandHandler::_handleMode()
             {
                 std::map<char, modeFunc>::iterator it = _modes.find(modes[i].mode);
 
-                if (it == _modes.end())
+                if (it == _modes.end() || !(modes[i].sign == '+' || modes[i].sign == '-'))
                     _server->sendNumeric(_client, ERR_UNKNOWNMODE, _cmd.params, "is unknown mode char to me");
                 else
                     (this->*it->second)(channel, modes[i]);
