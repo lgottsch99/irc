@@ -2,6 +2,7 @@
 #define COMMANDHANDLER_HPP
 
 #include "Server.hpp"
+#include <climits>
 
 #define NICK_MAX 30
 
@@ -31,6 +32,8 @@ class CommandHandler	{
 			std::string arg; // empty if not required
 		} t_mode;
 
+		typedef std::vector<t_mode> t_mode_vect;
+
 		typedef void (CommandHandler::*handlerFunc)(void);
 		typedef void (CommandHandler::*modeFunc)(Channel *channel, const t_mode &mode);
 
@@ -58,12 +61,15 @@ class CommandHandler	{
 		void _modeOperator(Channel *channel, const t_mode &mode);
 
 		void _init_modes();
-		t_mode _parseMode(const IrcMessage &_cmd);
+		// t_mode _parseMode(const IrcMessage &_cmd);
+		t_mode_vect _parseMode(const IrcMessage &_cmd);
+		bool _modeNeedsArg(char mode, char sign);
 
 		bool _isNameDublicate(Server *server, std::string name, bool (CommandHandler::*compareFunc)(Client *, const std::string &));
 		bool _compareNick(Client *client, const std::string &name);
+		static bool _checkNickChars(const std::string &name);
 		bool _compareUser(Client *client, const std::string &name);
-		bool _checkNickChars(const std::string &name);
+		// bool _checkNickChars(const std::string &name);
 
 		bool _tryRegister();
 

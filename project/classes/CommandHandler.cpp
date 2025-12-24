@@ -570,23 +570,75 @@ void CommandHandler::_init_modes()
         char mode;
         std::string arg;
     } t_mode;
-*/
-CommandHandler::t_mode CommandHandler::_parseMode(const IrcMessage &_cmd) // dummy function, replace with an actual parser
-{
-    t_mode result;
 
-    result.sign = _cmd.params[1][0];
-    if (result.sign != '+' && result.sign != '-')
-        result.mode = ' '; // in the _handleMode it'll send the ERR_UNKNOWNMODE response, but maybe theres a better way to handle this
-    else
-        result.mode = _cmd.params[1][1];
-    if (!_cmd.params[2].empty())
-        result.arg = _cmd.params[2];
-    else
-        result.arg = "";
-    return result;
+    typedef std::vector<t_mode> t_mode_vect;
+*/
+
+CommandHandler::t_mode_vect CommandHandler::_parseMode(const IrcMessage &_cmd)
+{
+    t_mode_vect modes;
+
+    if (_cmd.params.size() < 2)
+        return modes;
+
+    const std::string& modeStr = _cmd.params[1];
+    char sign = 0;
+    size_t argIndex = 2; // 0 is for #channel, 1 is for modestring, args start at 2
+    for (size_t i = 0; i < modeStr.size(); i++)
+    {
+        char c = modeStr[i];
+        if (c == '+' || c == '-')
+        {
+            sign = c;
+            continue;
+        }
+
+        t_mode m;
+        m.sign = sign;
+        m.mode = c;
+
+        if (_modeNeedsArg(c, sign))
+        {
+            if (argIndex < _cmd.params.size())
+                m.arg = _cmd.params[argIndex++];
+            else
+            {
+                m.arg = ""; //throw ERR_NEEDMOREPARAMS here or later
+            }
+            
+        }
+        modes.push_back(m);
+    }
+    return modes;
 }
 
+
+// CommandHandler::t_mode CommandHandler::_parseMode(const IrcMessage &_cmd) // dummy function, replace with an actual parser
+// {
+//     t_mode result;
+
+//     result.sign = _cmd.params[1][0];
+//     if (result.sign != '+' && result.sign != '-')
+//         result.mode = ' '; // in the _handleMode it'll send the ERR_UNKNOWNMODE response, but maybe theres a better way to handle this
+//     else
+//         result.mode = _cmd.params[1][1];
+//     if (!_cmd.params[2].empty())
+//         result.arg = _cmd.params[2];
+//     else
+//         result.arg = "";
+//     return result;
+// }
+
+bool CommandHandler::_modeNeedsArg(char mode, char sign)
+{
+    if (mode == 'i' || mode == 't')
+        return false;
+    else if ((mode == 'k' || mode == 'l') && sign == '-')
+        return false;
+    else
+        return true;
+    
+}
 /*
 4.2.3 Mode message
     Command: MODE <channel> {[+|-]|o|i|t|l|k} [<limit>] [<user>]
@@ -620,15 +672,19 @@ void CommandHandler::_handleMode()
             _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
         else
         {
-            t_mode mode = _parseMode(_cmd);
+            t_mode_vect modes = _parseMode(_cmd);
 
             _init_modes();
-            std::map<char, modeFunc>::iterator it = _modes.find(mode.mode);
+            for (size_t i = 0; i < modes.size(); i++)
+            {
+                std::map<char, modeFunc>::iterator it = _modes.find(modes[i].mode);
 
-            if (it == _modes.end())
-                _server->sendNumeric(_client, ERR_UNKNOWNMODE, _cmd.params, "is unknown mode char to me");
-            else
-                (this->*it->second)(channel, mode);
+                if (it == _modes.end() || !(modes[i].sign == '+' || modes[i].sign == '-'))
+                    _server->sendNumeric(_client, ERR_UNKNOWNMODE, _cmd.params, "is unknown mode char to me");
+                else
+                    (this->*it->second)(channel, modes[i]);
+            }
+            
         }
     }
 }
