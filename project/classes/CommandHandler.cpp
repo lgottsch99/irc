@@ -38,6 +38,18 @@ bool CommandHandler::_tryRegister()
     return false;
 }
 
+
+/* Capability negotiation - LIlli TODO?
+
+Clients sometimes ask for servers capabilities before sending PASS USER NICK
+a short and simple command can end this process, (the process does not seem to be very relevant for the features we have to implement)
+
+*/
+void CommandHandler::_handleCap()
+{
+	_server->replyToClient(_client, ":_ft_irc CAP * LS :\r\n");
+}
+
 /*
 4.1.1 Password message
     Command: PASS <password>
@@ -697,7 +709,8 @@ void CommandHandler::_handlePing()
         _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
     else if (_cmd.params[0].empty())
         _server->sendNumeric(_client, ERR_NOORIGIN, _cmd.params, "No origin specified");
-    _server->replyToClient(_client, "PONG :" + _cmd.trailing + "\r\n"); // maybe add a function that's like the send numeric but without the numeric?
+    //_server->replyToClient(_client, "PONG :" + _cmd.trailing + "\r\n"); // maybe add a function that's like the send numeric but without the numeric?
+	_server->replyToClient(_client, "PONG :" + _cmd.params[0] + "\r\n"); // maybe add a function that's like the send numeric but without the numeric?
 }
 
 void CommandHandler::_handlePong()
@@ -771,6 +784,7 @@ CommandHandler::CommandHandler(Server *server, Client *client, const IrcMessage 
     _handlers["PONG"] = &CommandHandler::_handlePong;
     _handlers["NOTICE"] = &CommandHandler::_handleNotice;
     _handlers["PRIVMSG"] = &CommandHandler::_handlePrivmsg;
+	_handlers["CAP"] = &CommandHandler::_handleCap;
 }
 
 CommandHandler::~CommandHandler(void)

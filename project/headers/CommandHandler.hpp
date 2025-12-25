@@ -40,6 +40,7 @@ class CommandHandler	{
 		std::map<std::string, handlerFunc> _handlers;
 		std::map<char, modeFunc> _modes;
 
+		void _handleCap();
 		void _handlePass();
 		void _handleNick();
 		void _handleUser();

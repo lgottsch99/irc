@@ -227,6 +227,7 @@ void Server::_receive_data(int fd)
                 // PASS to HANDLER
                 CommandHandler handler(this, it->second, message);
                 handler.handleCmd();
+
             }
             else // TODO test
             {
