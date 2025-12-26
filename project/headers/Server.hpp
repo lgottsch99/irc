@@ -25,6 +25,7 @@
 //todo incl handling headers
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?
+#define MAX_MESSAGE_LEN 512
 
 class Server {
 private:
@@ -66,6 +67,10 @@ public:
 	Client *getClient(const std::string&);
 
 	void sendNumeric(Client* c, Numeric code, const std::vector<std::string>&params, const std::string& trailing);
+	void sendError(Client *c, const std::string& reason);
+	void sendServerNotice(Client *c, const std::string& text, const std::string& target = "");
+	void sendChannelNotice(Channel *ch, const std::string& text);
+
 	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
 	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK

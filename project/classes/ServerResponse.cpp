@@ -15,11 +15,56 @@ void Server::sendNumeric(Client *c, Numeric code, const std::vector<std::string>
     if (!trailing.empty())
         msg << " :" << trailing;
 
-    // check length and truncate here
+    // check length and truncate
+    if (msg.width() > MAX_MESSAGE_LEN - 2)
+        msg.width(MAX_MESSAGE_LEN - 2);
 
     msg << "\r\n";
-    // send msg.str();
     replyToClient(c, msg.str());
+}
+
+void Server::sendServerNotice(Client *c, const std::string& text, const std::string& target = "")
+{
+    std::ostringstream msg;
+
+    msg << ":" << _serverName << " NOTICE ";
+
+    if (!target.empty())
+        msg << target;
+    else
+        msg << (!c->getNickname().empty() ? c->getNickname() : "*");
+
+    msg << " :" << text << "\r\n";
+
+    replyToClient(c, msg.str());
+}
+
+void Server::sendChannelNotice(Channel *channel, const std::string& text)
+{
+    std::ostringstream msg;
+    msg << ":" << _serverName
+        << " NOTICE " << channel->getName()
+        << " :" << text << "\r\n";
+
+    std::set<Client *> users = channel->getUsers();
+
+    for (std::set<Client *>::iterator it = users.begin(); it != users.end(); it++)
+    {
+        replyToClient(*it, msg.str());
+    }
+}
+
+// void Server::pingClient(Client *c)
+// {
+//     std::ostringstream msg;
+//     msg << "PING :" << serverName << "\r\n";
+//     c.send(msg.str());
+// }
+
+// this is to reserved for fatal errors that should be followed by disconnecting the client
+void Server::sendError(Client *c, const std::string& reason)
+{
+    replyToClient(c, "ERROR :" + reason + "\r\n");
 }
 
 void Server::broadcastFromUser(
@@ -61,7 +106,8 @@ void Server::broadcastToOneChannel(const std::string &msg, Client *client, const
     {
         if (*it == client)
             continue;
-        replyToClient(client, msg);
+        replyToClient(client, msg); // katka: this seems to be abel to send messages to this one client not to every client in the channel
+        // maybe should be: replyToClient(*it, msg);
     }
 }
 
