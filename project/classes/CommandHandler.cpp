@@ -401,16 +401,18 @@ void CommandHandler::_handlePrivmsg()
             else if (!channel->hasUser(_client))
                 _server->sendNumeric(_client, ERR_CANNOTSENDTOCHAN, _cmd.params, "Cannot send to channel");
             else
-                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+                // _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+                _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing); //better formatting
         }
         else
         {
             Client *recipient = _server->getClient(_cmd.params[0]); // check for dublicate recipients
-
+            Client *sender = _client;
             if (!recipient)
                 _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
             else
-                _server->replyToClient(recipient, _cmd.trailing + "\r\n"); // wrong
+                _server->sendPrivmsg(sender, recipient->getNickname(), _cmd.trailing); // correct
+                // _server->replyToClient(recipient, _cmd.trailing + "\r\n"); // wrong
         }
     }
 }
