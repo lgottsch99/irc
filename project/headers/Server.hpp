@@ -68,9 +68,9 @@ public:
 
 	void sendNumeric(Client* c, Numeric code, const std::vector<std::string>&params, const std::string& trailing);
 	void sendError(Client *c, const std::string& reason);
-	void sendServerNotice(Client *c, const std::string& text, const std::string& target = "");
+	void sendServerNotice(Client *c, const std::string& text, const std::string& target);
 	void sendChannelNotice(Channel *ch, const std::string& text);
-
+	void sendPrivmsg(Client *from, const std::string& target, const std::string& text);
 	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
 	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK

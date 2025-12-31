@@ -88,11 +88,12 @@ void Server::broadcastFromUser(
     if (!trailing.empty())
         msg << " :" << trailing;
 
-    // check length and truncate here
+    // check length and truncate
+    if (msg.width() > MAX_MESSAGE_LEN - 2)
+        msg.width(MAX_MESSAGE_LEN - 2);
 
     msg << "\r\n";
 
-    // channel.sendToAll(msg.str(), &from);
     broadcastToOneChannel(msg.str(), from, channel);
 }
 
@@ -106,8 +107,7 @@ void Server::broadcastToOneChannel(const std::string &msg, Client *client, const
     {
         if (*it == client)
             continue;
-        replyToClient(client, msg); // katka: this seems to be abel to send messages to this one client not to every client in the channel
-        // maybe should be: replyToClient(*it, msg);
+        replyToClient(*it, msg);
     }
 }
 
@@ -118,4 +118,20 @@ void Server::broadcastToAllChannels(const std::string &trailing, Client *client)
     for (std::set<Channel*>::iterator it = channels.begin(); it != channels.end(); ++it){
         broadcastToOneChannel(trailing, client, *it);
     }
+}
+
+void Server::sendPrivmsg(Client *from, const std::string& target, const std::string& text)
+{
+    std::ostringstream msg;
+    msg << ":" << from->getNickname() 
+    << "!" << from->getUsername()
+    // << "@" << from.hostname()
+    << " PRIVMSG " << target
+    << " :" << text << "\r\n";
+
+    if (getChannel(target))
+        broadcastToOneChannel(msg.str(), from, getChannel(target));
+    else if (getClient(target))
+        replyToClient(getClient(target), msg.str());
+
 }
