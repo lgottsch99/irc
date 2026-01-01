@@ -57,6 +57,7 @@ class CommandHandler	{
 		void _handleNotice();
 		void _handlePrivmsg();
 		void _handleNames();
+		void _handleCap(); //buggy
 
 		void _modeInvite(Channel *channel, const t_mode &mode);
 		void _modeKey(Channel *channel, const t_mode &mode);

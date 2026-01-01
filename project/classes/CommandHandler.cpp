@@ -168,6 +168,8 @@ void CommandHandler::_addUserToChannel(Channel *channel)
     channel->addUser(_client);
     _client->addToChannel(channel);
 
+	 _server->sendJoin(_client, channel);   // <-- JOIN reply
+
     if (!channel->getTopic().empty())
         _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, channel->getTopic());
     else
@@ -719,6 +721,13 @@ void CommandHandler::_handleMode()
     }
 }
 
+void CommandHandler::_handleCap()
+{
+	
+    _server->replyToClient(_client, ":_ft_irc CAP * LS :\r\n");
+}
+
+
 // ---------------- Connecton check ----------------
 
 void CommandHandler::_handlePing()
@@ -803,6 +812,7 @@ CommandHandler::CommandHandler(Server *server, Client *client, const IrcMessage 
     _handlers["NOTICE"] = &CommandHandler::_handleNotice;
     _handlers["PRIVMSG"] = &CommandHandler::_handlePrivmsg;
     _handlers["NAMES"] = &CommandHandler::_handleNames;
+	_handlers["CAP"] = &CommandHandler::_handleCap;
 }
 
 CommandHandler::~CommandHandler(void)

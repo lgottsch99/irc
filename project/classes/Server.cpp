@@ -442,6 +442,8 @@ adds message (msg) to send to client (indicated by Client*) to outgoing send buf
 */
 void Server::replyToClient(Client *client, const std::string &msg)
 {
+	std::cout << "SENDING TO CLIENT " << client->getNickname() << " : [" << msg << "]" << std::endl;
+
     // add msg to send_buf of client, (msg needs to be irc protocol conform)
     client->send_buf += msg;
 
@@ -491,10 +493,19 @@ Channel *Server::getChannel(const std::string &name)
 
 Client *Server::getClient(const std::string &nick)
 {
+    std::string target = nick;
+    std::transform(target.begin(), target.end(), target.begin(), ::tolower);
+
     for (std::map<int, Client *>::iterator it = Clients.begin(); it != Clients.end(); ++it)
     {
-        if (it->second && !it->second->getNickname().compare(nick))
-            return it->second;
+        if (it->second)
+        {
+            std::string storedNick = it->second->getNickname();
+            std::transform(storedNick.begin(), storedNick.end(), storedNick.begin(), ::tolower);
+
+            if (storedNick == target)
+                return it->second;
+        }
     }
     return NULL;
 }

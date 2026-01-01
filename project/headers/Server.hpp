@@ -78,7 +78,7 @@ public:
 	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
 	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK
-
+	void sendJoin(Client *client, Channel *channel); //added lilli join test
 	static void SignalHandler(int signum);
 
     void init(char *argv[]);

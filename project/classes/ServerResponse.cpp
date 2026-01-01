@@ -20,6 +20,7 @@ void Server::sendNumeric(Client *c, Numeric code, const std::vector<std::string>
         msg.width(MAX_MESSAGE_LEN - 2);
 
     msg << "\r\n";
+
     replyToClient(c, msg.str());
 }
 
@@ -125,7 +126,7 @@ void Server::sendPrivmsg(Client *from, const std::string& target, const std::str
     std::ostringstream msg;
     msg << ":" << from->getNickname() 
     << "!" << from->getUsername()
-    // << "@" << from.hostname()
+    << "@" << from->ip_address
     << " PRIVMSG " << target
     << " :" << text << "\r\n";
 
@@ -134,4 +135,23 @@ void Server::sendPrivmsg(Client *from, const std::string& target, const std::str
     else if (getClient(target))
         replyToClient(getClient(target), msg.str());
 
+}
+
+
+void Server::sendJoin(Client *client, Channel *channel) //for JOIN reply
+{
+    std::ostringstream msg;
+
+    msg << ":" << client->getNickname()
+        << "!" << client->getUsername()
+        // << "@" << client->getHost()
+        << " JOIN :" << channel->getName()
+        << "\r\n";
+
+    std::set<Client *> users = channel->getUsers();
+
+    for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
+    {
+        replyToClient(*it, msg.str()); // INCLUDING client
+    }
 }
