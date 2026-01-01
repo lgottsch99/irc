@@ -172,6 +172,14 @@ void CommandHandler::_handleJoin()
         _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel"); // not sure about the response
     else
     {
+        
+        std::vector<std::string> channels = Parser::splitByComma(_cmd.params[0]);
+        if (_cmd.params.size() >= 2)
+        {
+            std::vector<std::string> keys = Parser::splitByComma(_cmd.params[1]);
+        }
+
+        // now use the channel and key vectors instead of just _cmd.params[0] and _cmd.params[1]
         std::map<std::string, Channel *>::iterator it = _server->Channels.find(_cmd.params[0]);
 
         if (it == _server->Channels.end())
@@ -390,6 +398,8 @@ void CommandHandler::_handlePrivmsg()
         _server->sendNumeric(_client, ERR_NORECIPIENT, _cmd.params, "No recipient given " + _cmd.command);
     else
     {
+        std::vector<std::string> targets = Parser::splitByComma(_cmd.params[0]);
+        // now use targets instead of _cmd.params[0]
         if (_cmd.trailing.empty())
             _server->sendNumeric(_client, ERR_NOTEXTTOSEND, _cmd.params, "No text to send");
         else if (_cmd.params[0][0] == '#' || _cmd.params[0][0] == '&')
@@ -417,7 +427,7 @@ void CommandHandler::_handlePrivmsg()
 
 /*
 4.4.2 Notice
-    Command: NOTICE <nickname> :<text>
+    Command: NOTICE <nickname>{,<nickname>} :<text>
 
     The NOTICE message is used similarly to PRIVMSG.  The difference
     between NOTICE and PRIVMSG is that automatic replies must never be
@@ -429,6 +439,8 @@ void CommandHandler::_handleNotice()
         return;
     else
     {
+        std::vector<std::string> targets = Parser::splitByComma(_cmd.params[0]);
+        // now use targets instead of _cmd.params[0]
         if (_cmd.trailing.empty())
             return;
         else if (_cmd.params[0][0] == '#' || _cmd.params[0][0] == '&')
@@ -777,3 +789,5 @@ CommandHandler::~CommandHandler(void)
 {
     // std::cout << "(CommandHandler) Destructor\n";
 }
+
+

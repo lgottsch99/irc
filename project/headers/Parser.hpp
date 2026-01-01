@@ -31,6 +31,8 @@ class Parser {
 
     public:
         static IrcMessage parseLine(const std::string& input);
+        static std::vector<std::string> splitByComma(const std::string &param);
+
 };
 
 void printIrcMessage(IrcMessage& message);

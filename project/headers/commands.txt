@@ -12,7 +12,8 @@ WHOIS nick1,nick2
 
 Messaging (both in eval sheet!)
 
-* PRIVMSG
+* PRIVMSG <target>{,<target>} <text to be sent>
+
 * NOTICE
 
 Channels
@@ -22,9 +23,10 @@ JOIN #a,#b key1,key2
 
 * PART
 
+
 * MODE <channel> <modes> [<mode params>]
-MODE #chan +oo nick1,nick2
-MODE #chan +b mask1,mask2
+MODE #chan +oo nick1 nick2
+MODE #chan +b mask1 mask2
 
 * TOPIC
 

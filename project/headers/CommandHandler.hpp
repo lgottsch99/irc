@@ -61,7 +61,6 @@ class CommandHandler	{
 		void _modeOperator(Channel *channel, const t_mode &mode);
 
 		void _init_modes();
-		// t_mode _parseMode(const IrcMessage &_cmd);
 		t_mode_vect _parseMode(const IrcMessage &_cmd);
 		bool _modeNeedsArg(char mode, char sign);
 
@@ -69,7 +68,6 @@ class CommandHandler	{
 		bool _compareNick(Client *client, const std::string &name);
 		static bool _checkNickChars(const std::string &name);
 		bool _compareUser(Client *client, const std::string &name);
-		// bool _checkNickChars(const std::string &name);
 
 		bool _tryRegister();
 

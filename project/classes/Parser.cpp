@@ -75,3 +75,18 @@ void Parser::normalizeCMD(std::string& cmd)
     std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 }
 
+std::vector<std::string> Parser::splitByComma(const std::string &param)
+{
+    std::vector<std::string> vec;
+    std::stringstream  ss(param);
+    std::string str;
+    while (getline(ss, str, ','))
+        vec.push_back(str);
+    std::cout << "params split by comma: ";
+    // for (std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); it++)
+    // {
+    //     std::cout << *it << " ";
+    // }
+    // std::cout << std::endl;
+    return vec;
+}
