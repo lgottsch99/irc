@@ -17,12 +17,6 @@ void CommandHandler::handleCmd()
     }
 }
 
-// void CommandHandler::sendToChannel(const std::string &channelName, const std::string &msg, Client *exceptClient)
-// {
-// }
-
-// void sendToClient(int fd, const std::string& msg);
-
 // ---------------- 4.1 CONNECTION REGISTRATION ----------------
 
 bool CommandHandler::_tryRegister()
@@ -47,7 +41,7 @@ bool CommandHandler::_tryRegister()
     Example:
            PASS secretpasswordhere
 */
-void CommandHandler::_handlePass() // no numeric on success
+void CommandHandler::_handlePass()
 {
     if (_cmd.params.empty())
         _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
@@ -65,6 +59,15 @@ void CommandHandler::_handlePass() // no numeric on success
     }
 }
 
+void CommandHandler::_sendRegistrationNumerics()
+{
+    _server->sendNumeric(_client, RPL_WELCOME, _cmd.params, "Welcome to the server!");
+    _server->sendNumeric(_client, RPL_YOURHOST, _cmd.params, "Your host is ft_irc, running version 1.0");
+    _server->sendNumeric(_client, RPL_CREATED, _cmd.params, "This server was created " + _server->getCreationTime());
+    _server->sendNumeric(_client, RPL_MYINFO, _cmd.params, "ft_irc 1.0 o itkol");
+    _server->sendNumeric(_client, RPL_ISUPPORT, _cmd.params, "CHANTYPES=#& PREFIX=(o)@ CHANMODES=itkol NICKLEN=30 :are supported by this server");
+}
+
 /*
 4.1.2 Nick message
     Command: NICK <nickname>
@@ -74,7 +77,7 @@ void CommandHandler::_handlePass() // no numeric on success
     Examples:
         NICK Wiz                        ; Introducing new nick "Wiz".
 */
-void CommandHandler::_handleNick() // no numeric on success
+void CommandHandler::_handleNick()
 {
     if (_cmd.params.empty())
         _server->sendNumeric(_client, ERR_NONICKNAMEGIVEN, _cmd.params, "No nickname given");
@@ -92,7 +95,7 @@ void CommandHandler::_handleNick() // no numeric on success
     if (!_client->isRegistered() && _tryRegister())
     {
         _client->setRegistered(true);
-        _server->sendNumeric(_client, RPL_WELCOME, _cmd.params, "Welcome to the server!");
+        _sendRegistrationNumerics();
     }
 }
 
@@ -122,7 +125,19 @@ void CommandHandler::_handleUser()
     if (!_client->isRegistered() && _tryRegister())
     {
         _client->setRegistered(true);
-        _server->sendNumeric(_client, RPL_WELCOME, _cmd.params, "Welcome to the server!");
+        _sendRegistrationNumerics();
+    }
+}
+
+void CommandHandler::_removeClientFromChannels()
+{
+    std::set<Channel *> channels = _client->getChannels();
+
+    for (std::set<Channel *>::iterator it = channels.begin(); it != channels.end(); ++it)
+    {
+        if ((*it)->isOperator(_client))
+            (*it)->removeOperator(_client);
+        (*it)->removeUser(_client);
     }
 }
 
@@ -141,11 +156,26 @@ void CommandHandler::_handleQuit()
     if (!_cmd.trailing.empty())
         _server->broadcastToAllChannels(_cmd.trailing, _client);
     else
-        _server->broadcastToAllChannels(_client->getNickname() + " left the server.", _client); // left the channel?
+        _server->broadcastToAllChannels(_client->getNickname() + " left the server.", _client);
+    _removeClientFromChannels();
     _server->markClientToDisconnect(_client->fd);
 }
 
 // ---------------- 4.2 CHANNEL OPERATIONS ----------------
+
+void CommandHandler::_addUserToChannel(Channel *channel)
+{
+    channel->addUser(_client);
+    _client->addToChannel(channel);
+
+    if (!channel->getTopic().empty())
+        _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, channel->getTopic());
+    else
+        _server->sendNumeric(_client, RPL_NOTOPIC, _cmd.params, "No topic is set");
+
+    _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, _listNamesOnChannel(channel));
+    _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
+}
 
 /*
 4.2.1 Join message
@@ -180,16 +210,8 @@ void CommandHandler::_handleJoin()
             _server->createChannel(_cmd.params[0]);
             it = _server->Channels.find(_cmd.params[0]);
             it->second->addOperator(_client);
-            it->second->addUser(_client);
-            _client->addToChannel(it->second);
 
-            if (!it->second->getTopic().empty())
-                _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, it->second->getTopic());
-            else
-                _server->sendNumeric(_client, RPL_NOTOPIC, _cmd.params, "No topic is set");
-            // implement NAMES command
-            _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, "nicknames");
-            _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
+            _addUserToChannel(it->second);
         }
         else if (!_client->hasChannel(it->second))
         {
@@ -203,20 +225,23 @@ void CommandHandler::_handleJoin()
             else if (it->second->getUserLimit() > 0 && it->second->getUserLimit() <= it->second->getNumOfUsers())
                 _server->sendNumeric(_client, ERR_CHANNELISFULL, _cmd.params, "Cannot join channel (+l)");
             else
-            {
-                it->second->addUser(_client);
-                _client->addToChannel(it->second);
-
-                if (!it->second->getTopic().empty())
-                    _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, it->second->getTopic());
-                else
-                    _server->sendNumeric(_client, RPL_NOTOPIC, _cmd.params, "No topic is set");
-                // implement NAMES command
-                _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, "nicknames");
-                _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
-            }
+                _addUserToChannel(it->second);
         }
     }
+}
+
+std::string CommandHandler::_listNamesOnChannel(Channel *channel)
+{
+    std::string nicknames = "";
+    std::set<Client *> users = channel->getUsers();
+
+    for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
+    {
+        if (channel->isOperator(*it))
+            nicknames += "@";
+        nicknames += (*it)->getNickname() + " ";
+    }
+    return nicknames;
 }
 
 /*
@@ -224,25 +249,39 @@ void CommandHandler::_handleJoin()
     Command: NAMES [<channel>{,<channel>}]
 
     By using the NAMES command, a user can list all nicknames that are
-    visible to them on any channel that they can see.  Channel names
-    which they can see are those which aren't private (+p) or secret (+s)
-    or those which they are actually on.  The <channel> parameter
-    specifies which channel(s) to return information about if valid.
-    There is no error reply for bad channel names.
+    visible to them on any channel that they can see.
 
     If no <channel> parameter is given, a list of all channels and their
-    occupants is returned.  At the end of this list, a list of users who
-    are visible but either not on any channel or not on a visible channel
-    are listed as being on `channel' "*".
+    occupants is returned.
 
-    Numerics:
-            RPL_NAMREPLY                    RPL_ENDOFNAMES
+    There is no error reply for bad channel names.
+
     Examples:
     NAMES #twilight_zone,#42        ; list visible users on #twilight_zone
                                     and #42 if the channels are visible to
                                     you.
     NAMES                           ; list all visible channels and users
 */
+void CommandHandler::_handleNames()
+{
+    if (_cmd.params.empty())
+    {
+        for (std::map<std::string, Channel *>::iterator it = _server->Channels.begin(); it != _server->Channels.end(); ++it)
+        {
+            _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, _listNamesOnChannel(it->second));
+            _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
+        }
+    }
+    else
+    {
+        Channel *channel = _server->getChannel(_cmd.params[0]);
+        if (!channel)
+            return;
+
+        _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, _listNamesOnChannel(channel));
+        _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
+    }
+}
 
 /*
 4.2.8 Kick command
@@ -322,13 +361,18 @@ void CommandHandler::_handleInvite()
                 _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
             else if (channel->hasUser(invitedClient))
                 _server->sendNumeric(_client, ERR_USERONCHANNEL, _cmd.params, "is already on channel");
-            _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
-            invitedClient->addInvited(_cmd.params[1]);
+            else
+            {
+                _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
+                invitedClient->addInvited(_cmd.params[1]);
+                _server->replyToClient(_client, _client->getNickname() + " was invited to an existing channel " + channel->getName());
+            }
         }
         else
         {
             _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
             invitedClient->addInvited(_cmd.params[1]);
+            _server->replyToClient(_client, _client->getNickname() + " was invited to a future channel " + channel->getName());
         }
     }
 }
@@ -401,18 +445,16 @@ void CommandHandler::_handlePrivmsg()
             else if (!channel->hasUser(_client))
                 _server->sendNumeric(_client, ERR_CANNOTSENDTOCHAN, _cmd.params, "Cannot send to channel");
             else
-                // _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
-                _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing); //better formatting
+                _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing); // better formatting
         }
         else
         {
             Client *recipient = _server->getClient(_cmd.params[0]); // check for dublicate recipients
-            Client *sender = _client;
+
             if (!recipient)
                 _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
             else
-                _server->sendPrivmsg(sender, recipient->getNickname(), _cmd.trailing); // correct
-                // _server->replyToClient(recipient, _cmd.trailing + "\r\n"); // wrong
+                _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing); // correct
         }
     }
 }
@@ -451,7 +493,7 @@ void CommandHandler::_handleNotice()
             if (!recipient)
                 return;
             else
-                _server->replyToClient(recipient, _cmd.trailing + "\r\n"); // wrong
+                _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing);
         }
     }
 }
@@ -499,7 +541,7 @@ void CommandHandler::_modeKey(Channel *channel, const t_mode &mode)
             _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
         else
         {
-            channel->setKey(_cmd.params[2]);
+            channel->setKey(mode.arg);
             _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
         }
     }
@@ -551,9 +593,15 @@ void CommandHandler::_modeOperator(Channel *channel, const t_mode &mode)
         else if (!channel->hasUser(newOper))
             _server->sendNumeric(_client, ERR_USERNOTINCHANNEL, _cmd.params, "They aren't on that channel");
         else if (mode.sign == '+')
+        {
             channel->addOperator(newOper);
+            _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+        }
         else
+        {
             channel->removeOperator(newOper);
+            _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+        }
     }
 }
 
@@ -583,7 +631,7 @@ CommandHandler::t_mode_vect CommandHandler::_parseMode(const IrcMessage &_cmd)
     if (_cmd.params.size() < 2)
         return modes;
 
-    const std::string& modeStr = _cmd.params[1];
+    const std::string &modeStr = _cmd.params[1];
     char sign = 0;
     size_t argIndex = 2; // 0 is for #channel, 1 is for modestring, args start at 2
     for (size_t i = 0; i < modeStr.size(); i++)
@@ -605,31 +653,13 @@ CommandHandler::t_mode_vect CommandHandler::_parseMode(const IrcMessage &_cmd)
                 m.arg = _cmd.params[argIndex++];
             else
             {
-                m.arg = ""; //throw ERR_NEEDMOREPARAMS here or later
+                m.arg = ""; // throw ERR_NEEDMOREPARAMS here or later
             }
-            
         }
         modes.push_back(m);
     }
     return modes;
 }
-
-
-// CommandHandler::t_mode CommandHandler::_parseMode(const IrcMessage &_cmd) // dummy function, replace with an actual parser
-// {
-//     t_mode result;
-
-//     result.sign = _cmd.params[1][0];
-//     if (result.sign != '+' && result.sign != '-')
-//         result.mode = ' '; // in the _handleMode it'll send the ERR_UNKNOWNMODE response, but maybe theres a better way to handle this
-//     else
-//         result.mode = _cmd.params[1][1];
-//     if (!_cmd.params[2].empty())
-//         result.arg = _cmd.params[2];
-//     else
-//         result.arg = "";
-//     return result;
-// }
 
 bool CommandHandler::_modeNeedsArg(char mode, char sign)
 {
@@ -639,7 +669,6 @@ bool CommandHandler::_modeNeedsArg(char mode, char sign)
         return false;
     else
         return true;
-    
 }
 /*
 4.2.3 Mode message
@@ -686,7 +715,6 @@ void CommandHandler::_handleMode()
                 else
                     (this->*it->second)(channel, modes[i]);
             }
-            
         }
     }
 }
@@ -699,7 +727,8 @@ void CommandHandler::_handlePing()
         _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
     else if (_cmd.params[0].empty())
         _server->sendNumeric(_client, ERR_NOORIGIN, _cmd.params, "No origin specified");
-    _server->replyToClient(_client, "PONG :" + _cmd.trailing + "\r\n"); // maybe add a function that's like the send numeric but without the numeric?
+
+    _server->replyToClient(_client, "PONG :ft_irc " + _cmd.trailing + "\r\n");
 }
 
 void CommandHandler::_handlePong()
@@ -773,6 +802,7 @@ CommandHandler::CommandHandler(Server *server, Client *client, const IrcMessage 
     _handlers["PONG"] = &CommandHandler::_handlePong;
     _handlers["NOTICE"] = &CommandHandler::_handleNotice;
     _handlers["PRIVMSG"] = &CommandHandler::_handlePrivmsg;
+    _handlers["NAMES"] = &CommandHandler::_handleNames;
 }
 
 CommandHandler::~CommandHandler(void)

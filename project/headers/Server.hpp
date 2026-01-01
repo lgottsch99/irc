@@ -17,6 +17,8 @@
 #include <fcntl.h>
 #include <cerrno>
 
+#include <ctime>
+
 #include "Client.hpp"
 #include "Parser.hpp"
 #include "CommandHandler.hpp"
@@ -34,6 +36,7 @@ private:
     int         _serverSocketFd;
 	static bool _signal; //-> static boolean for signal, to shutdown in clean way
 	std::string	_serverName; //server name for irc replies (always "ft_irc")
+	std::string _creationTime;
 
     std::vector<struct pollfd> _pollfds;
 
@@ -65,6 +68,7 @@ public:
     void removeChannel(const std::string&);
 	Channel *getChannel(const std::string&);
 	Client *getClient(const std::string&);
+	std::string getCreationTime() const;
 
 	void sendNumeric(Client* c, Numeric code, const std::vector<std::string>&params, const std::string& trailing);
 	void sendError(Client *c, const std::string& reason);
@@ -74,7 +78,6 @@ public:
 	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
 	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK
-	// void removeClientFromChannels();
 
 	static void SignalHandler(int signum);
 

@@ -393,6 +393,11 @@ void Server::init(char *argv[])
     NewPoll.revents = 0;
     _pollfds.push_back(NewPoll);
 
+    std::time_t now = std::time(NULL);
+    _creationTime = std::ctime(&now);
+    _creationTime.erase(_creationTime.find_last_of("\n"));
+    std::cout << "Server was created on " << _creationTime << std::endl;
+
     std::cout << "SERVER SOCKET READY!" << std::endl;
 }
 
@@ -484,7 +489,7 @@ Channel *Server::getChannel(const std::string &name)
     return it->second;
 }
 
-Client* Server::getClient(const std::string& nick)
+Client *Server::getClient(const std::string &nick)
 {
     for (std::map<int, Client *>::iterator it = Clients.begin(); it != Clients.end(); ++it)
     {
@@ -494,6 +499,7 @@ Client* Server::getClient(const std::string& nick)
     return NULL;
 }
 
-// void Server::removeClientFromChannels(){
-    
-// }
+std::string Server::getCreationTime() const
+{
+    return _creationTime;
+}
