@@ -11,10 +11,13 @@
 
 /* TO-DO
 	1. JOIN #foo,#bar fubar,foobar - split
-	2. validate a name of a channel: #, &
-	3. handle multiple modes in one command line
-	4. implement ping, pong, names, notice, privmsg
-	5. add sendToChannel()
+	3. NAMES - done
+	4. proper QUITting for clients - done
+	Handle multiple PRIVMSG recipients
+	CAP LS
+	formatting for NAMES message in _handleNames
+
+After successful registration, send 01-04 - done
 */
 
 class Server;
@@ -53,6 +56,8 @@ class CommandHandler	{
 		void _handlePong();
 		void _handleNotice();
 		void _handlePrivmsg();
+		void _handleNames();
+		void _handleCap(); //buggy
 
 		void _modeInvite(Channel *channel, const t_mode &mode);
 		void _modeKey(Channel *channel, const t_mode &mode);
@@ -60,9 +65,13 @@ class CommandHandler	{
 		void _modeTopic(Channel *channel, const t_mode &mode);
 		void _modeOperator(Channel *channel, const t_mode &mode);
 
+		std::string _listNamesOnChannel(Channel *channel);
+		void _sendRegistrationNumerics();
+		void _addUserToChannel(Channel *channel);
 		void _init_modes();
 		t_mode_vect _parseMode(const IrcMessage &_cmd);
 		bool _modeNeedsArg(char mode, char sign);
+		void _removeClientFromChannels();
 
 		bool _isNameDublicate(Server *server, std::string name, bool (CommandHandler::*compareFunc)(Client *, const std::string &));
 		bool _compareNick(Client *client, const std::string &name);
@@ -82,10 +91,5 @@ class CommandHandler	{
 
 		// void sendToClient(int fd, const std::string& msg); // internally forwards the msg to server:  server->send_response(fd, msg);
 };
-
-/* sends msg to multiple clients, internally:
-	1. lookup channel members
-	2. iterate over users and sendToClient(user->fd, msg) for each (except if client is marked as except (aka the sender of the msg))
-*/
 
 #endif

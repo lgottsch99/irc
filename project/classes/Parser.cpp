@@ -26,7 +26,7 @@ IrcMessage Parser::parseLine(const std::string& input)
 template<typename Iter>
 void print_range(Iter first, Iter last) {
     for (; first != last; ++first)
-        std::cout << *first << " ";
+       std::cout << *first << " ";
 }
 
 void printIrcMessage(IrcMessage& message)

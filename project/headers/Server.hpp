@@ -17,6 +17,8 @@
 #include <fcntl.h>
 #include <cerrno>
 
+#include <ctime>
+
 #include "Client.hpp"
 #include "Parser.hpp"
 #include "CommandHandler.hpp"
@@ -25,6 +27,7 @@
 //todo incl handling headers
 
 #define MAX_RECV_BUF 10000 //how big does it need to be?
+#define MAX_MESSAGE_LEN 512
 
 class Server {
 private:
@@ -33,6 +36,7 @@ private:
     int         _serverSocketFd;
 	static bool _signal; //-> static boolean for signal, to shutdown in clean way
 	std::string	_serverName; //server name for irc replies (always "ft_irc")
+	std::string _creationTime;
 
     std::vector<struct pollfd> _pollfds;
 
@@ -64,13 +68,17 @@ public:
     void removeChannel(const std::string&);
 	Channel *getChannel(const std::string&);
 	Client *getClient(const std::string&);
+	std::string getCreationTime() const;
 
 	void sendNumeric(Client* c, Numeric code, const std::vector<std::string>&params, const std::string& trailing);
+	void sendError(Client *c, const std::string& reason);
+	void sendServerNotice(Client *c, const std::string& text, const std::string& target);
+	void sendChannelNotice(Channel *ch, const std::string& text);
+	void sendPrivmsg(Client *from, const std::string& target, const std::string& text);
 	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
 	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK
-	// void removeClientFromChannels();
-
+	void sendJoin(Client *client, Channel *channel); //added lilli join test
 	static void SignalHandler(int signum);
 
     void init(char *argv[]);
