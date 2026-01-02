@@ -445,7 +445,6 @@ void CommandHandler::_handlePrivmsg()
     else
     {
         std::vector<std::string> targets = Parser::splitByComma(_cmd.params[0]);
-        // now use targets instead of _cmd.params[0]
         for (std::vector<std::string>::iterator it = targets.begin(); it != targets.end(); it++)
         {
             if (_cmd.trailing.empty())
@@ -491,28 +490,32 @@ void CommandHandler::_handleNotice()
     {
         std::vector<std::string> targets = Parser::splitByComma(_cmd.params[0]);
         // now use targets instead of _cmd.params[0]
-        if (_cmd.trailing.empty())
-            return;
-        else if (_cmd.params[0][0] == '#' || _cmd.params[0][0] == '&')
+        for (std::vector<std::string>::iterator it = targets.begin(); it != targets.end(); it++)
         {
-            Channel *channel = _server->getChannel(_cmd.params[0]);
+            if (_cmd.trailing.empty())
+                return;
+            else if ((*it)[0] == '#' || (*it)[0] == '&')
+            {
+                Channel *channel = _server->getChannel(*it);
 
-            if (!channel)
-                return;
-            else if (!channel->hasUser(_client))
-                return;
+                if (!channel)
+                    return;
+                else if (!channel->hasUser(_client))
+                    return;
+                else
+                    _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+            }
             else
-                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
-        }
-        else
-        {
-            Client *recipient = _server->getClient(_cmd.params[0]);
+            {
+                Client *recipient = _server->getClient(*it);
 
-            if (!recipient)
-                return;
-            else
-                _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing);
+                if (!recipient)
+                    return;
+                else
+                    _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing);
+            }
         }
+        
     }
 }
 
