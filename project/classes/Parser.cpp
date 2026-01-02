@@ -3,6 +3,7 @@
 #include <sstream> // for istringstream
 #include <cctype> // for toupper
 #include <algorithm> // for transform
+#include <set>
 
 
 // private constructors
@@ -75,14 +76,20 @@ void Parser::normalizeCMD(std::string& cmd)
     std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
 }
 
-std::vector<std::string> Parser::splitByComma(const std::string &param)
+std::vector<std::string> Parser::splitByComma(const std::string &param, bool removeDuplicates)
 {
     std::vector<std::string> vec;
+    std::set<std::string> uniques;
     std::stringstream  ss(param);
     std::string str;
     while (getline(ss, str, ','))
-        vec.push_back(str);
-    std::cout << "params split by comma: ";
+    {
+        if (removeDuplicates && uniques.insert(str).second)
+            vec.push_back(str);
+    }
+    (void)uniques;
+        
+    // std::cout << "params split by comma: ";
     // for (std::vector<std::string>::iterator it = vec.begin(); it != vec.end(); it++)
     // {
     //     std::cout << *it << " ";

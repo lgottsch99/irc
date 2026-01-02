@@ -446,28 +446,32 @@ void CommandHandler::_handlePrivmsg()
     {
         std::vector<std::string> targets = Parser::splitByComma(_cmd.params[0]);
         // now use targets instead of _cmd.params[0]
-        if (_cmd.trailing.empty())
-            _server->sendNumeric(_client, ERR_NOTEXTTOSEND, _cmd.params, "No text to send");
-        else if (_cmd.params[0][0] == '#' || _cmd.params[0][0] == '&')
+        for (std::vector<std::string>::iterator it = targets.begin(); it != targets.end(); it++)
         {
-            Channel *channel = _server->getChannel(_cmd.params[0]);
+            if (_cmd.trailing.empty())
+                _server->sendNumeric(_client, ERR_NOTEXTTOSEND, _cmd.params, "No text to send");
+            else if ((*it)[0] == '#' || (*it)[0] == '&')
+            {
+                Channel *channel = _server->getChannel(*it);
 
-            if (!channel)
-                _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
-            else if (!channel->hasUser(_client))
-                _server->sendNumeric(_client, ERR_CANNOTSENDTOCHAN, _cmd.params, "Cannot send to channel");
+                if (!channel)
+                    _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
+                else if (!channel->hasUser(_client))
+                    _server->sendNumeric(_client, ERR_CANNOTSENDTOCHAN, _cmd.params, "Cannot send to channel");
+                else
+                    _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing); // better formatting
+            }
             else
-                _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing); // better formatting
-        }
-        else
-        {
-            Client *recipient = _server->getClient(_cmd.params[0]); // check for dublicate recipients
+            {
+                Client *recipient = _server->getClient(*it); // check for dublicate recipients
 
-            if (!recipient)
-                _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
-            else
-                _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing); // correct
+                if (!recipient)
+                    _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
+                else
+                    _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing); // correct
+            }
         }
+        
     }
 }
 
