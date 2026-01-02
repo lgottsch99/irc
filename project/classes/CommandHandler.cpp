@@ -200,43 +200,52 @@ void CommandHandler::_handleJoin()
         _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
     else if (!_client->isRegistered())
         _server->sendNumeric(_client, ERR_NOTREGISTERED, _cmd.params, "You have not registered");
-    else if ((_cmd.params[0][0] != '#' && _cmd.params[0][0] != '&') || _cmd.params[0].length() > 200)
-        _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel"); // not sure about the response
     else
     {
         
-        std::vector<std::string> channels = Parser::splitByComma(_cmd.params[0]);
+        std::vector<std::string> channels = Parser::splitByComma(_cmd.params[0], false);
+        std::vector<std::string> keys;
         if (_cmd.params.size() >= 2)
         {
-            std::vector<std::string> keys = Parser::splitByComma(_cmd.params[1]);
+           keys = Parser::splitByComma(_cmd.params[1], false);
         }
+        else
+            keys.assign(channels.size(), "");
 
         // now use the channel and key vectors instead of just _cmd.params[0] and _cmd.params[1]
-        std::map<std::string, Channel *>::iterator it = _server->Channels.find(_cmd.params[0]);
-
-        if (it == _server->Channels.end())
+        for (unsigned int i=0; i < channels.size(); i++)
         {
-            std::cout << "Channel not found - creating a new one: " << _cmd.params[0] << std::endl;
-            _server->createChannel(_cmd.params[0]);
-            it = _server->Channels.find(_cmd.params[0]);
-            it->second->addOperator(_client);
-
-            _addUserToChannel(it->second);
-        }
-        else if (!_client->hasChannel(it->second))
-        {
-            if (it->second->isInviteOnly() && !_client->isInvited(it->first))
-                _server->sendNumeric(_client, ERR_INVITEONLYCHAN, _cmd.params, "Cannot join channel (+i)");
-            else if (it->second->hasKey())
-            {
-                if ((_cmd.params.size() >= 2 && _cmd.params[1] != it->second->getKey()) || _cmd.params.size() < 2)
-                    _server->sendNumeric(_client, ERR_BADCHANNELKEY, _cmd.params, "Cannot join channel (+k)");
-            }
-            else if (it->second->getUserLimit() > 0 && it->second->getUserLimit() <= it->second->getNumOfUsers())
-                _server->sendNumeric(_client, ERR_CHANNELISFULL, _cmd.params, "Cannot join channel (+l)");
+            if ((channels[i][0] != '#' && channels[i][0] != '&') || channels[i].length() > 200)
+                _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel"); // not sure about the response
+            
             else
-                _addUserToChannel(it->second);
+            {
+                std::map<std::string, Channel *>::iterator it = _server->Channels.find(channels[i]);
+
+                if (it == _server->Channels.end())
+                {
+                    std::cout << "Channel not found - creating a new one: " << channels[i] << std::endl;
+                    _server->createChannel(channels[i]);
+                    it = _server->Channels.find(channels[i]);
+                    it->second->addOperator(_client);
+
+                    _addUserToChannel(it->second);
+                }
+                else if (!_client->hasChannel(it->second))
+                {
+                    if (it->second->isInviteOnly() && !_client->isInvited(it->first))
+                        _server->sendNumeric(_client, ERR_INVITEONLYCHAN, _cmd.params, "Cannot join channel (+i)");
+                    else if (it->second->hasKey() && ((keys.size() >= channels.size() && keys[i] != it->second->getKey()) || keys.size() < i))
+                            _server->sendNumeric(_client, ERR_BADCHANNELKEY, _cmd.params, "Cannot join channel (+k)");
+                    else if (it->second->getUserLimit() > 0 && it->second->getUserLimit() <= it->second->getNumOfUsers())
+                        _server->sendNumeric(_client, ERR_CHANNELISFULL, _cmd.params, "Cannot join channel (+l)");
+                    else
+                        _addUserToChannel(it->second);
+                }
+            }
+            
         }
+        
     }
 }
 

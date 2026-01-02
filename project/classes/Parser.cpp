@@ -84,7 +84,7 @@ std::vector<std::string> Parser::splitByComma(const std::string &param, bool rem
     std::string str;
     while (getline(ss, str, ','))
     {
-        if (removeDuplicates && uniques.insert(str).second)
+        if ((removeDuplicates && uniques.insert(str).second) || !removeDuplicates)
             vec.push_back(str);
     }
     (void)uniques;
