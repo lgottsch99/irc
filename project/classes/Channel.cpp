@@ -40,9 +40,14 @@ std::string Channel::listActiveModes() const
 
 // ---------------- Operations with users ----------------
 
-bool Channel::hasOperator() const
+bool Channel::hasOperators() const
 {
     return !_operators.empty();
+}
+
+bool Channel::hasUsers() const
+{
+    return !_users.empty();
 }
 
 bool Channel::hasUser(Client *client) const

@@ -285,11 +285,13 @@ void CommandHandler::_removeClientFromChannel(Client *client, Channel *channel)
     channel->removeUser(client);
     client->leaveChannel(channel);
 
-    if (!channel->hasOperator())
+    if (!channel->hasOperators())
     {
         Client *newOper = *channel->getUsers().begin();
         channel->addOperator(newOper);
     }
+    if (!channel->hasUsers())
+        _server->removeChannel(channel->getName());
 }
 
 /*

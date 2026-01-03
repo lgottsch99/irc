@@ -34,6 +34,8 @@ public:
     unsigned int getUserLimit() const;
     unsigned int getNumOfUsers() const;
     std::string getCreationTime() const;
+    bool hasOperators() const;
+    bool hasUsers() const;
 
     bool isInviteOnly() const;
     bool hasKey() const;
@@ -49,7 +51,6 @@ public:
 
     bool hasUser(Client *) const;
     bool isOperator(Client *) const;
-    bool hasOperator() const;
     void addUser(Client *);
     void removeUser(Client *);
     void addOperator(Client *);
