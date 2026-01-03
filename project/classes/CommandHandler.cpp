@@ -129,18 +129,6 @@ void CommandHandler::_handleUser()
     }
 }
 
-void CommandHandler::_removeClientFromChannels()
-{
-    std::set<Channel *> channels = _client->getChannels();
-
-    for (std::set<Channel *>::iterator it = channels.begin(); it != channels.end(); ++it)
-    {
-        if ((*it)->isOperator(_client))
-            (*it)->removeOperator(_client);
-        (*it)->removeUser(_client);
-    }
-}
-
 /*
 4.1.6 Quit
     Command: QUIT [<Quit message>]
@@ -157,7 +145,11 @@ void CommandHandler::_handleQuit()
         _server->broadcastToAllChannels(_cmd.trailing, _client);
     else
         _server->broadcastToAllChannels(_client->getNickname() + " left the server.", _client);
-    _removeClientFromChannels();
+
+    std::set<Channel *> channels = _client->getChannels();
+    for (std::set<Channel *>::iterator it = channels.begin(); it != channels.end(); ++it)
+        _removeClientFromChannel(_client, *it);
+
     _server->markClientToDisconnect(_client->fd);
 }
 
@@ -168,15 +160,15 @@ void CommandHandler::_addUserToChannel(Channel *channel)
     channel->addUser(_client);
     _client->addToChannel(channel);
 
-	 _server->sendJoin(_client, channel);   // <-- JOIN reply
+    // _server->sendJoin(_client, channel); // <-- JOIN reply
+
+    _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, channel->listNames());
+    _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
 
     if (!channel->getTopic().empty())
         _server->sendNumeric(_client, RPL_TOPIC, _cmd.params, channel->getTopic());
     else
         _server->sendNumeric(_client, RPL_NOTOPIC, _cmd.params, "No topic is set");
-
-    _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, _listNamesOnChannel(channel));
-    _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
 }
 
 /*
@@ -202,22 +194,19 @@ void CommandHandler::_handleJoin()
         _server->sendNumeric(_client, ERR_NOTREGISTERED, _cmd.params, "You have not registered");
     else
     {
-        
         std::vector<std::string> channels = Parser::splitByComma(_cmd.params[0], false);
         std::vector<std::string> keys;
         if (_cmd.params.size() >= 2)
-        {
-           keys = Parser::splitByComma(_cmd.params[1], false);
-        }
+            keys = Parser::splitByComma(_cmd.params[1], false);
         else
             keys.assign(channels.size(), "");
 
         // now use the channel and key vectors instead of just _cmd.params[0] and _cmd.params[1]
-        for (unsigned int i=0; i < channels.size(); i++)
+        for (unsigned int i = 0; i < channels.size(); i++)
         {
-            if ((channels[i][0] != '#' && channels[i][0] != '&') || channels[i].length() > 200)
-                _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel"); // not sure about the response
-            
+            if ((channels[i][0] != '#' && channels[i][0] != '&') || channels[i].length() > CHAN_MAX)
+                _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
+
             else
             {
                 std::map<std::string, Channel *>::iterator it = _server->Channels.find(channels[i]);
@@ -236,31 +225,15 @@ void CommandHandler::_handleJoin()
                     if (it->second->isInviteOnly() && !_client->isInvited(it->first))
                         _server->sendNumeric(_client, ERR_INVITEONLYCHAN, _cmd.params, "Cannot join channel (+i)");
                     else if (it->second->hasKey() && ((keys.size() >= channels.size() && keys[i] != it->second->getKey()) || keys.size() < i))
-                            _server->sendNumeric(_client, ERR_BADCHANNELKEY, _cmd.params, "Cannot join channel (+k)");
+                        _server->sendNumeric(_client, ERR_BADCHANNELKEY, _cmd.params, "Cannot join channel (+k)");
                     else if (it->second->getUserLimit() > 0 && it->second->getUserLimit() <= it->second->getNumOfUsers())
                         _server->sendNumeric(_client, ERR_CHANNELISFULL, _cmd.params, "Cannot join channel (+l)");
                     else
                         _addUserToChannel(it->second);
                 }
             }
-            
         }
-        
     }
-}
-
-std::string CommandHandler::_listNamesOnChannel(Channel *channel)
-{
-    std::string nicknames = "";
-    std::set<Client *> users = channel->getUsers();
-
-    for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
-    {
-        if (channel->isOperator(*it))
-            nicknames += "@";
-        nicknames += (*it)->getNickname() + " ";
-    }
-    return nicknames;
 }
 
 /*
@@ -286,19 +259,36 @@ void CommandHandler::_handleNames()
     if (_cmd.params.empty())
     {
         for (std::map<std::string, Channel *>::iterator it = _server->Channels.begin(); it != _server->Channels.end(); ++it)
-        {
-            _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, _listNamesOnChannel(it->second));
-            _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
-        }
+            _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, it->second->listNames());
+        _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
     }
     else
     {
-        Channel *channel = _server->getChannel(_cmd.params[0]);
-        if (!channel)
-            return;
+        std::vector<std::string> channels = Parser::splitByComma(_cmd.params[0]);
+        for (size_t i = 0; i < channels.size(); i++)
+        {
+            Channel *channel = _server->getChannel(channels[i]);
+            if (!channel)
+                return;
 
-        _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, _listNamesOnChannel(channel));
-        _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
+            _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, channel->listNames());
+            _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
+        }
+    }
+}
+
+// util to remove clients, used in PART, KICK, QUIT
+void CommandHandler::_removeClientFromChannel(Client *client, Channel *channel)
+{
+    if (channel->isOperator(client))
+        channel->removeOperator(client);
+    channel->removeUser(client);
+    client->leaveChannel(channel);
+
+    if (!channel->hasOperator())
+    {
+        Client *newOper = *channel->getUsers().begin();
+        channel->addOperator(newOper);
     }
 }
 
@@ -313,10 +303,6 @@ void CommandHandler::_handleNames()
         KICK &Melbourne Matthew                 ; Kick Matthew from &Melbourne
         KICK #Finnish John :Speaking English    ; Kick John from #Finnish using
                                                 "Speaking English" as the reason (comment).
-    NOTE:
-    It is possible to extend the KICK command parameters to the
-    following:
-        <channel>{,<channel>} <user>{,<user>} [<comment>]
 */
 void CommandHandler::_handleKick()
 {
@@ -343,10 +329,45 @@ void CommandHandler::_handleKick()
             else
             {
                 _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
-                channel->removeUser(kickedClient);
-                if (channel->isOperator(kickedClient))
-                    channel->removeOperator(kickedClient);
-                kickedClient->leaveChannel(channel);
+                _removeClientFromChannel(kickedClient, channel);
+            }
+        }
+    }
+}
+
+/* 4.2.2 Part message
+    Command: PART <channel>{,<channel>} <reason>
+
+    The PART message causes the client sending the message to be removed
+    from the list of active users for all given channels listed in the
+    parameter string.
+
+    Numeric Replies:
+            ERR_NEEDMOREPARAMS              ERR_NOSUCHCHANNEL
+            ERR_NOTONCHANNEL
+    Examples:
+        PART #twilight_zone             ; leave channel "#twilight_zone"
+        PART #oz-ops,&group5            ; leave both channels "&group5" and
+                                        "#oz-ops".*/
+void CommandHandler::_handlePart()
+{
+    if (_cmd.params.empty())
+        _server->sendNumeric(_client, ERR_NEEDMOREPARAMS, _cmd.params, "Not enough parameters");
+    else
+    {
+        std::vector<std::string> channels = Parser::splitByComma(_cmd.params[0]);
+        for (size_t i = 0; i < channels.size(); i++)
+        {
+            Channel *channel = _server->getChannel(channels[i]);
+
+            if (!channel)
+                _server->sendNumeric(_client, ERR_NOSUCHCHANNEL, _cmd.params, "No such channel");
+            else if (!channel->hasUser(_client))
+                _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
+            else
+            {
+                _server->broadcastFromUser(_client, _cmd.command, _cmd.params, _cmd.trailing, channel);
+                _removeClientFromChannel(_client, channel);
             }
         }
     }
@@ -384,14 +405,15 @@ void CommandHandler::_handleInvite()
             {
                 _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
                 invitedClient->addInvited(_cmd.params[1]);
-                _server->replyToClient(_client, _client->getNickname() + " was invited to an existing channel " + channel->getName());
+                _server->sendReaction(invitedClient, "INVITE " + invitedClient->getNickname(), channel->getName());
+                // _server->replyToClient(invitedClient, );
             }
         }
         else
         {
             _server->sendNumeric(_client, RPL_INVITING, _cmd.params, "");
             invitedClient->addInvited(_cmd.params[1]);
-            _server->replyToClient(_client, _client->getNickname() + " was invited to a future channel " + channel->getName());
+            _server->sendReaction(invitedClient, "INVITE " + invitedClient->getNickname(), channel->getName());
         }
     }
 }
@@ -446,19 +468,19 @@ void CommandHandler::_handleTopic()
     Examples:
         PRIVMSG Angel :yes I'm receiving it !receiving it !'u>(768u+1n) .br
                                         ; Message to Angel.
-    */
+*/
 void CommandHandler::_handlePrivmsg()
 {
     if (_cmd.params.empty())
         _server->sendNumeric(_client, ERR_NORECIPIENT, _cmd.params, "No recipient given " + _cmd.command);
+    else if (_cmd.trailing.empty())
+        _server->sendNumeric(_client, ERR_NOTEXTTOSEND, _cmd.params, "No text to send");
     else
     {
         std::vector<std::string> targets = Parser::splitByComma(_cmd.params[0]);
         for (std::vector<std::string>::iterator it = targets.begin(); it != targets.end(); it++)
         {
-            if (_cmd.trailing.empty())
-                _server->sendNumeric(_client, ERR_NOTEXTTOSEND, _cmd.params, "No text to send");
-            else if ((*it)[0] == '#' || (*it)[0] == '&')
+            if ((*it)[0] == '#' || (*it)[0] == '&')
             {
                 Channel *channel = _server->getChannel(*it);
 
@@ -467,19 +489,18 @@ void CommandHandler::_handlePrivmsg()
                 else if (!channel->hasUser(_client))
                     _server->sendNumeric(_client, ERR_CANNOTSENDTOCHAN, _cmd.params, "Cannot send to channel");
                 else
-                    _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing); // better formatting
+                    _server->sendPrivmsg(_client, channel->getName(), _cmd.trailing);
             }
             else
             {
-                Client *recipient = _server->getClient(*it); // check for dublicate recipients
+                Client *recipient = _server->getClient(*it);
 
                 if (!recipient)
                     _server->sendNumeric(_client, ERR_NOSUCHNICK, _cmd.params, "No such nick/channel");
                 else
-                    _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing); // correct
+                    _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing);
             }
         }
-        
     }
 }
 
@@ -524,14 +545,13 @@ void CommandHandler::_handleNotice()
                     _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing);
             }
         }
-        
     }
 }
 
 // ---------------- MODES ----------------
 
 // i - invite-only channel flag
-void CommandHandler::_modeInvite(Channel *channel, const t_mode &mode) // do i need to check if its already invite-only?
+void CommandHandler::_modeInvite(Channel *channel, const t_mode &mode)
 {
     if (mode.sign == '+')
     {
@@ -700,6 +720,7 @@ bool CommandHandler::_modeNeedsArg(char mode, char sign)
     else
         return true;
 }
+
 /*
 4.2.3 Mode message
     Command: MODE <channel> {[+|-]|o|i|t|l|k} [<limit>] [<user>]
@@ -728,7 +749,10 @@ void CommandHandler::_handleMode()
         else if (!_client->hasChannel(channel))
             _server->sendNumeric(_client, ERR_NOTONCHANNEL, _cmd.params, "You're not on that channel");
         else if (_cmd.params.size() == 1)
-            _server->sendNumeric(_client, RPL_CHANNELMODEIS, _cmd.params, "");
+        {
+            _server->sendNumeric(_client, RPL_CHANNELMODEIS, _cmd.params, channel->listActiveModes());
+            _server->sendNumeric(_client, RPL_CREATIONTIME, _cmd.params, channel->getCreationTime());
+        }
         else if (!channel->isOperator(_client))
             _server->sendNumeric(_client, ERR_CHANOPRIVSNEEDED, _cmd.params, "You're not channel operator");
         else
@@ -736,7 +760,7 @@ void CommandHandler::_handleMode()
             t_mode_vect modes = _parseMode(_cmd);
 
             _init_modes();
-            for (size_t i = 0; i < modes.size(); i++)
+            for (size_t i = 0; i < modes.size(); i++) // iterates twice for one invalid mode
             {
                 std::map<char, modeFunc>::iterator it = _modes.find(modes[i].mode);
 
@@ -749,12 +773,31 @@ void CommandHandler::_handleMode()
     }
 }
 
+/*
+Capability negotiation is started by the client issuing a CAP LS 302 command
+(indicating to the server support for IRCv3.2 capability negotiation).
+Negotiation is then performed with
+the CAP REQ, CAP ACK, and CAP NAK commands, and is ended with the CAP END command.
+    Command: CAP <subcommand> [<parameters>...]
+*/
 void CommandHandler::_handleCap()
 {
-	
-    _server->replyToClient(_client, ":_ft_irc CAP * LS :\r\n");
-}
+    if (_cmd.params.empty())
+        return;
+    else
+    {
+        const std::string subcommand = _cmd.params[0];
 
+        if (subcommand == "LS")
+            _server->sendReaction(_client, "CAP * LS :", "");
+        else if (subcommand == "REG")
+            _server->sendReaction(_client, "NAK", _cmd.trailing); // we dont support any capabilities, always reject
+        else if (subcommand == "END")
+            return;
+        else
+            _server->sendNumeric(_client, ERR_INVALIDCAPCMD, _cmd.params, "Invalid subcommand");
+    }
+}
 
 // ---------------- Connecton check ----------------
 
@@ -765,7 +808,8 @@ void CommandHandler::_handlePing()
     else if (_cmd.params[0].empty())
         _server->sendNumeric(_client, ERR_NOORIGIN, _cmd.params, "No origin specified");
 
-    _server->replyToClient(_client, "PONG :ft_irc " + _cmd.trailing + "\r\n");
+    _server->sendReaction(_client, "PONG", _cmd.trailing);
+    // _server->replyToClient(_client, "PONG :ft_irc " + _cmd.trailing + "\r\n");
 }
 
 void CommandHandler::_handlePong()
@@ -840,12 +884,11 @@ CommandHandler::CommandHandler(Server *server, Client *client, const IrcMessage 
     _handlers["NOTICE"] = &CommandHandler::_handleNotice;
     _handlers["PRIVMSG"] = &CommandHandler::_handlePrivmsg;
     _handlers["NAMES"] = &CommandHandler::_handleNames;
-	_handlers["CAP"] = &CommandHandler::_handleCap;
+    _handlers["CAP"] = &CommandHandler::_handleCap;
+    _handlers["PART"] = &CommandHandler::_handlePart;
 }
 
 CommandHandler::~CommandHandler(void)
 {
     // std::cout << "(CommandHandler) Destructor\n";
 }
-
-

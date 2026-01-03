@@ -3,18 +3,47 @@
 
 // ---------------- Member Functions ----------------
 
-// void Server::replyToClient(Client *client, const std::string &msg);
+std::string Channel::listNames() const
+{
+    std::string nicknames = "";
 
-// void Channel::sendToAll(const std::string &msg, Client *sender)
-// {
-//     std::set<Client*>::iterator it = _users.begin();
+    for (std::set<Client *>::iterator it = _users.begin(); it != _users.end(); ++it)
+    {
+        if (isOperator(*it))
+            nicknames += "@";
+        nicknames += (*it)->getNickname() + " ";
+    }
+    return nicknames;
+}
 
-//     for (it; it != _users.end(); ++it){
+std::string Channel::listActiveModes() const
+{
+    std::string activeModes = "+";
+    std::string args = "";
 
-//     }
-// }
+    if (_mode_i)
+        activeModes += "i";
+    if (_mode_t)
+        activeModes += "t";
+    if (_mode_k)
+    {
+        activeModes += "k";
+        args += _key + " ";
+    }
+    if (_mode_l)
+    {
+        activeModes += "l";
+        args += _userLimit;
+    }
+    return activeModes;
+}
 
 // ---------------- Operations with users ----------------
+
+bool Channel::hasOperator() const
+{
+    return !_operators.empty();
+}
 
 bool Channel::hasUser(Client *client) const
 {
@@ -76,6 +105,11 @@ unsigned int Channel::getNumOfUsers(void) const
 std::string Channel::getTopic(void) const
 {
     return _topic;
+}
+
+std::string Channel::getCreationTime() const
+{
+    return _created;
 }
 
 bool Channel::isInviteOnly(void) const
@@ -148,14 +182,14 @@ void Channel::removeLimit(void)
 // ---------------- Constructors ----------------
 
 Channel::Channel(void)
-    : _name(""), _topic(""), _key(""), _userLimit(0),
+    : _name(""), _topic(""), _key(""), _userLimit(0), _created(""),
       _mode_i(false), _mode_t(false), _mode_k(false), _mode_l(false)
 {
     std::cout << "(Channel) Default constructor\n";
 }
 
-Channel::Channel(const std::string &name)
-    : _name(name), _topic(""), _key(""), _userLimit(0),
+Channel::Channel(const std::string &name, const std::string &creationTime)
+    : _name(name), _topic(""), _key(""), _userLimit(0), _created(creationTime),
       _mode_i(false), _mode_t(false), _mode_k(false), _mode_l(false)
 {
     std::cout << "(Channel) Overload constructor\n";

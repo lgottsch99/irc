@@ -24,6 +24,25 @@ void Server::sendNumeric(Client *c, Numeric code, const std::vector<std::string>
     replyToClient(c, msg.str());
 }
 
+void Server::sendReaction(Client *c, const std::string &param, const std::string &trailing)
+{
+    std::ostringstream msg;
+    msg << ":" << _serverName
+        // << " " << (!c->getNickname().empty() ? c->getNickname() : "*")
+        << " " << param;
+
+    if (!trailing.empty())
+        msg << " :" << trailing;
+
+    // check length and truncate
+    if (msg.width() > MAX_MESSAGE_LEN - 2)
+        msg.width(MAX_MESSAGE_LEN - 2);
+
+    msg << "\r\n";
+
+    replyToClient(c, msg.str());
+}
+
 void Server::sendServerNotice(Client *c, const std::string& text, const std::string& target = "")
 {
     std::ostringstream msg;
@@ -138,20 +157,20 @@ void Server::sendPrivmsg(Client *from, const std::string& target, const std::str
 }
 
 
-void Server::sendJoin(Client *client, Channel *channel) //for JOIN reply
-{
-    std::ostringstream msg;
+// void Server::sendJoin(Client *client, Channel *channel) //for JOIN reply
+// {
+//     std::ostringstream msg;
 
-    msg << ":" << client->getNickname()
-        << "!" << client->getUsername()
-        // << "@" << client->getHost()
-        << " JOIN :" << channel->getName()
-        << "\r\n";
+//     msg << ":" << client->getNickname()
+//         << "!" << client->getUsername()
+//         // << "@" << client->getHost()
+//         << " JOIN :" << channel->getName()
+//         << "\r\n";
 
-    std::set<Client *> users = channel->getUsers();
+//     std::set<Client *> users = channel->getUsers();
 
-    for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
-    {
-        replyToClient(*it, msg.str()); // INCLUDING client
-    }
-}
+//     for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
+//     {
+//         replyToClient(*it, msg.str()); // INCLUDING client
+//     }
+// }

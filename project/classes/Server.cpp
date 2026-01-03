@@ -393,9 +393,11 @@ void Server::init(char *argv[])
     NewPoll.revents = 0;
     _pollfds.push_back(NewPoll);
 
-    std::time_t now = std::time(NULL);
-    _creationTime = std::ctime(&now);
-    _creationTime.erase(_creationTime.find_last_of("\n"));
+    // std::time_t now = std::time(NULL);
+    // _creationTime = std::ctime(&now);
+    // _creationTime.erase(_creationTime.find_last_of("\n"));
+
+    _creationTime = getCurrentTime();
     std::cout << "Server was created on " << _creationTime << std::endl;
 
     std::cout << "SERVER SOCKET READY!" << std::endl;
@@ -442,7 +444,7 @@ adds message (msg) to send to client (indicated by Client*) to outgoing send buf
 */
 void Server::replyToClient(Client *client, const std::string &msg)
 {
-	std::cout << "SENDING TO CLIENT " << client->getNickname() << " : [" << msg << "]" << std::endl;
+    std::cout << "SENDING TO CLIENT " << client->getNickname() << " : [" << msg << "]" << std::endl;
 
     // add msg to send_buf of client, (msg needs to be irc protocol conform)
     client->send_buf += msg;
@@ -472,7 +474,7 @@ void Server::setPass(std::string pass)
 
 void Server::createChannel(const std::string &name)
 {
-    Channel *channel = new Channel(name);
+    Channel *channel = new Channel(name, getCurrentTime());
     Channels.insert(std::make_pair(name, channel));
 }
 
@@ -513,4 +515,12 @@ Client *Server::getClient(const std::string &nick)
 std::string Server::getCreationTime() const
 {
     return _creationTime;
+}
+
+std::string Server::getCurrentTime()
+{
+    std::time_t now = std::time(NULL);
+    std::string time = std::ctime(&now);
+    time.erase(time.find_last_of("\n"));
+    return time;
 }

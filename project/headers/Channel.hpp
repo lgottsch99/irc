@@ -13,6 +13,7 @@ private:
     std::string _topic;
     std::string _key;
     unsigned int _userLimit;
+    std::string _created;
 
     bool _mode_i;
     bool _mode_t;
@@ -24,17 +25,18 @@ private:
 
 public:
     Channel();
-    Channel(const std::string &name);
+    Channel(const std::string &name, const std::string &creationTime);
     ~Channel();
 
     const std::string &getName() const;
-    std::string getTopic(void) const;
+    std::string getTopic() const;
     const std::string &getKey() const;
-    unsigned int getUserLimit(void) const;
-    unsigned int getNumOfUsers(void) const;
+    unsigned int getUserLimit() const;
+    unsigned int getNumOfUsers() const;
+    std::string getCreationTime() const;
 
-    bool isInviteOnly(void) const;
-    bool hasKey(void) const;
+    bool isInviteOnly() const;
+    bool hasKey() const;
     bool isTopicRestricted() const;
 
     void setInviteMode(bool);
@@ -47,6 +49,7 @@ public:
 
     bool hasUser(Client *) const;
     bool isOperator(Client *) const;
+    bool hasOperator() const;
     void addUser(Client *);
     void removeUser(Client *);
     void addOperator(Client *);
@@ -54,6 +57,9 @@ public:
 
     std::set<Client *> getUsers() const;
     std::set<Client *> getOperators() const;
+
+    std::string listActiveModes() const;
+	std::string listNames() const;
 };
 
 #endif
