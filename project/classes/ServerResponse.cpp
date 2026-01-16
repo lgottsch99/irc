@@ -156,6 +156,22 @@ void Server::sendPrivmsg(Client *from, const std::string& target, const std::str
 
 }
 
+void Server::sendNotice(Client *from, const std::string& target, const std::string& text)
+{
+    std::ostringstream msg;
+    msg << ":" << from->getNickname() 
+    << "!" << from->getUsername()
+    << "@" << from->ip_address
+    << " NOTICE " << target
+    << " :" << text << "\r\n";
+
+    if (getChannel(target))
+        broadcastToOneChannel(msg.str(), from, getChannel(target));
+    else if (getClient(target))
+        replyToClient(getClient(target), msg.str());
+
+}
+
 
 void Server::sendJoin(Client *client, Channel *channel) //for JOIN reply
 {

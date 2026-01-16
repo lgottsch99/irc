@@ -544,7 +544,7 @@ void CommandHandler::_handleNotice()
                 if (!recipient)
                     return;
                 else
-                    _server->sendPrivmsg(_client, recipient->getNickname(), _cmd.trailing);
+                    _server->sendNotice(_client, recipient->getNickname(), _cmd.trailing);
             }
         }
     }
