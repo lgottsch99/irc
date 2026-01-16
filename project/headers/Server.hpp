@@ -13,10 +13,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #include <fcntl.h>
 #include <cerrno>
-
 #include <ctime>
 
 #include "Client.hpp"
@@ -26,7 +24,7 @@
 #include "NumericReplies.hpp"
 //todo incl handling headers
 
-#define MAX_RECV_BUF 10000 //how big does it need to be?
+#define MAX_RECV_BUF 10000
 #define MAX_MESSAGE_LEN 512
 
 class Server {
@@ -64,7 +62,7 @@ public:
 	/* The channel is created implicitly when
 	the first client joins it, and the channel ceases to
    	exist when the last client leaves it. */
-	void createChannel(const std::string&); // i allocate, needs freeing somewhere
+	void createChannel(const std::string&); // i allocate, needs freeing somewhere OK
     void removeChannel(const std::string&);
 	Channel *getChannel(const std::string&);
 	Client *getClient(const std::string&);
@@ -80,7 +78,7 @@ public:
 	void broadcastFromUser(Client *from, const std::string &command, const std::vector<std::string> &params, const std::string &trailing, const Channel *channel);
 	void broadcastToOneChannel(const std::string &msg, Client *client, const Channel* channel);
 	void broadcastToAllChannels(const std::string &trailing, Client *client); // QUIT, NICK
-	// void sendJoin(Client *client, Channel *channel); //added lilli join test
+	void sendJoin(Client *client, Channel *channel); //added lilli join test
 	static void SignalHandler(int signum);
 
     void init(char *argv[]);

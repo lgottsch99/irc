@@ -157,20 +157,20 @@ void Server::sendPrivmsg(Client *from, const std::string& target, const std::str
 }
 
 
-// void Server::sendJoin(Client *client, Channel *channel) //for JOIN reply
-// {
-//     std::ostringstream msg;
+void Server::sendJoin(Client *client, Channel *channel) //for JOIN reply
+{
+    std::ostringstream msg;
 
-//     msg << ":" << client->getNickname()
-//         << "!" << client->getUsername()
-//         // << "@" << client->getHost()
-//         << " JOIN :" << channel->getName()
-//         << "\r\n";
+    msg << ":" << client->getNickname()
+        << "!" << client->getUsername()
+        // << "@" << client->getHost()
+        << " JOIN :" << channel->getName()
+        << "\r\n";
 
-//     std::set<Client *> users = channel->getUsers();
+    std::set<Client *> users = channel->getUsers();
 
-//     for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
-//     {
-//         replyToClient(*it, msg.str()); // INCLUDING client
-//     }
-// }
+    for (std::set<Client *>::iterator it = users.begin(); it != users.end(); ++it)
+    {
+        replyToClient(*it, msg.str()); // INCLUDING client
+    }
+}

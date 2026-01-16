@@ -132,7 +132,10 @@ void Server::_setup_signal_handling(void)
     sigaction(SIGQUIT, &sa, NULL); // ctrl backslash
     sigaction(SIGTERM, &sa, NULL); // kill
 
-    // SIGPIPE needed???? TODO
+    // SIGPIPE ignore
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, NULL); // kill
+
 }
 
 /* creates CLIENT class & corresponding socket
@@ -167,9 +170,6 @@ void Server::_accept_new_client(void)
     Clients.insert(std::make_pair(clientfd, NewClient));    // add to client map
 
     std::cout << "NEW CLIENT ACCEPTED!" << std::endl;
-
-    // std::string sendTest = "lololool\r\n";
-    // replyToClient(NewClient, sendTest);
 }
 
 /* INTERFACE SERVER -> PARSER & HANDLER
@@ -195,8 +195,6 @@ void Server::_receive_data(int fd)
         std::map<int, Client *>::iterator it = Clients.find(fd);
         if (it->second->recv_buf.size() + bytes > MAX_RECV_BUF)
         {
-            // TODO correct response
-            // replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
             markClientToDisconnect(it->first);
             return;
         }
@@ -228,10 +226,8 @@ void Server::_receive_data(int fd)
                 CommandHandler handler(this, it->second, message);
                 handler.handleCmd();
             }
-            else // TODO test
+            else
             {
-                // TODO send correct response
-                // replyToClient(it->second, "417\r\n"); // ERR_INPUTTOOLONG, faulty client osftware
                 markClientToDisconnect(it->first);
                 break;
             }
@@ -255,9 +251,6 @@ void Server::_sendMsgBuf(pollfd *pfd)
         return; // client disconnected
 
     Client *c = it->second;
-
-    // TODO check max msg size/ buf size (split if too long) 		TODO
-
     ssize_t bytes = send(pfd->fd, c->send_buf.data(), c->send_buf.length(), 0);
 
     if (bytes > 0) // some bytes were sent
@@ -288,8 +281,10 @@ void Server::_sendMsgBuf(pollfd *pfd)
 */
 void Server::shutdown(void) // + delete channels
 {
-    // TODO
-    // close existing connections?
+	//delete channels
+    for (std::map<std::string, Channel *>::iterator it = Channels.begin(); it != Channels.end(); it++)
+		delete it->second;
+	Channels.clear();
 
     // delete all client instances
     for (std::map<int, Client *>::iterator it = Clients.begin(); it != Clients.end(); it++)

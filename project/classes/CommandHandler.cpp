@@ -160,7 +160,7 @@ void CommandHandler::_addUserToChannel(Channel *channel)
     channel->addUser(_client);
     _client->addToChannel(channel);
 
-    // _server->sendJoin(_client, channel); // <-- JOIN reply
+    _server->sendJoin(_client, channel); // <-- JOIN reply
 
     _server->sendNumeric(_client, RPL_NAMREPLY, _cmd.params, channel->listNames());
     _server->sendNumeric(_client, RPL_ENDOFNAMES, _cmd.params, "End of /NAMES list");
